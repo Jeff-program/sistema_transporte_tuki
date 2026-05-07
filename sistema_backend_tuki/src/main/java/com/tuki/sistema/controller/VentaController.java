@@ -1,0 +1,70 @@
+package com.tuki.sistema.controller;
+
+import com.tuki.sistema.dto.VentaDTO;
+import com.tuki.sistema.service.VentaService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/ventas")
+@CrossOrigin(origins = "*") 
+public class VentaController {
+
+    @Autowired
+    private VentaService ventaService;
+
+    @PostMapping("/grupal")
+    public ResponseEntity<?> registrarVentaGrupal(@RequestBody VentaDTO dto) {
+        try {
+            Map<String, Object> response = ventaService.registrarVentaGrupal(dto);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error en la venta: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/viajes/{idViaje}/ocupados")
+    public ResponseEntity<?> getAsientosOcupados(
+            @PathVariable Long idViaje,
+            @RequestParam Long origen,
+            @RequestParam Long destino) {
+        try {
+            Map<String, String> mapa = ventaService.obtenerEstadoAsientos(idViaje, origen, destino);
+            return ResponseEntity.ok(mapa);
+        } catch (Exception e) {
+            String errorMsg = e.getMessage() != null ? e.getMessage() : "Error interno (Ventas antiguas detectadas)";
+            return ResponseEntity.status(500).body(Map.of("error", errorMsg));
+        }
+    }
+    
+    @GetMapping("/viajes/{idViaje}/manifiesto")
+    public ResponseEntity<?> getManifiesto(@PathVariable Long idViaje) {
+        try {
+            return ResponseEntity.ok(ventaService.obtenerManifiesto(idViaje));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/detalle/{idViaje}/{idVenta}")
+    public ResponseEntity<?> getDetalleVenta(@PathVariable Long idViaje, @PathVariable Long idVenta) {
+        try {
+            return ResponseEntity.ok(ventaService.obtenerDetalleVenta(idVenta));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/viajes/{idViaje}/asientos/{asiento}")
+    public ResponseEntity<?> anularVenta(@PathVariable Long idViaje, @PathVariable String asiento) {
+        try {
+            ventaService.anularVenta(idViaje, asiento);
+            return ResponseEntity.ok(Map.of("mensaje", "Venta anulada correctamente"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+}

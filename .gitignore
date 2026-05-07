@@ -1,0 +1,15 @@
+# --- REACT / FRONTEND ---
+node_modules/
+dist/
+.env
+
+# --- SPRING BOOT / BACKEND ---
+target/
+*.jar
+*.war
+.mvn/
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
