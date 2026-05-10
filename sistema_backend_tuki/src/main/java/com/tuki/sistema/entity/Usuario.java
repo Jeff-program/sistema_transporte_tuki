@@ -31,9 +31,6 @@ public class Usuario {
     @Column(name = "foto_url", length = 255)
     private String fotoUrl;
 
-    @Column(name = "tiempo_espera_min")
-    private Integer tiempoEsperaMin;
-
     @Column(length = 20)
     private String estado = "ACTIVO";
 }

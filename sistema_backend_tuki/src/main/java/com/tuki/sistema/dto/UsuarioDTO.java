@@ -8,7 +8,6 @@ public class UsuarioDTO {
     private String email;
     private String rol;
     private String fotoUrl;
-    private Integer tiempoEsperaMin;
     private String estado;
     private Long idAgencia;
 }

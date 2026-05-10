@@ -798,7 +798,7 @@ const RutasPage = () => {
                                                 className={`flex-1 min-w-0 border ${errorPuerto ? 'border-red-400 bg-red-50' : 'border-gray-200'} p-2 text-xs rounded-lg focus:border-orange-400 outline-none bg-white`}
                                             >
                                                 <option value="">-- Parada --</option>
-                                                {getPuertosDisponibles(index).map(p => (<option key={p.idPuerto} value={p.idPuerto}>{p.ciudad}</option>))}
+                                                {getPuertosDisponibles(index).map(p => (<option key={p.idPuerto} value={p.idPuerto}>{p.ciudad} - ( {p.nombrePuerto} )</option>))}
                                             </select>
 
                                             <div className={`flex items-center gap-1 w-[140px] shrink-0 bg-white border ${errorHora || errorMinuto ? 'border-red-400 bg-red-50' : 'border-gray-200'} rounded-lg p-1 focus-within:border-orange-400 transition-colors`}>

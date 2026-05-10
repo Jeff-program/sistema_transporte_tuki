@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Unlock, DollarSign, CheckCircle, Printer } from 'lucide-react';
+import { X, Lock, Unlock, DollarSign, CheckCircle, Printer, Banknote } from 'lucide-react';
 import { abrirCaja, obtenerCajaActiva, cerrarCaja } from '../services/cajaService';
 import { getCurrentUser, getUserFromToken } from '../services/authService'; 
 import { notificarExito, notificarError, notificarCarga, cerrarNotificacion } from '../services/feedbackService';
@@ -128,7 +128,7 @@ const ModalCaja: React.FC<ModalCajaProps> = ({ isOpen, onClose, onSuccess }) => 
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase">Monto Inicial (Efectivo)</label>
                                 <div className="relative mt-1">
-                                    <DollarSign className="absolute left-3 top-3 text-gray-400" size={20}/>
+                                    <Banknote className="absolute left-3 top-3 text-gray-400" size={20}/>
                                     <input 
                                         type="number" value={montoInput} onChange={(e) => setMontoInput(e.target.value)}
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xl font-black text-[#2A3F54] focus:border-blue-500 focus:bg-white outline-none transition-all"
@@ -150,7 +150,7 @@ const ModalCaja: React.FC<ModalCajaProps> = ({ isOpen, onClose, onSuccess }) => 
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase">Efectivo Físico Contado</label>
                                 <div className="relative mt-1">
-                                    <DollarSign className="absolute left-3 top-3 text-gray-400" size={20}/>
+                                    <Banknote className="absolute left-3 top-3 text-gray-400" size={20}/>
                                     <input 
                                         type="number" value={montoInput} onChange={(e) => setMontoInput(e.target.value)}
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xl font-black text-[#2A3F54] focus:border-orange-500 focus:bg-white outline-none transition-all"

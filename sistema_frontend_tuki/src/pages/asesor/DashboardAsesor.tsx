@@ -7,7 +7,9 @@ import { getCurrentUser } from '../../services/authService';
 import ModalCaja from '../../components/ModalCaja';
 import { 
     Ticket, Users, Ship, AlertTriangle, ArrowRight, 
-    Calendar, Activity, CheckCircle, Clock, Timer, Lock
+    Calendar, Activity, CheckCircle, Clock, Timer, Lock,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react';
 import { AreaChart, Area, PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, XAxis } from 'recharts';
 
@@ -43,6 +45,10 @@ const DashboardAsesor = () => {
     const [modalCajaAbierto, setModalCajaAbierto] = useState(false);
     
     const [horaPeru, setHoraPeru] = useState(new Date());
+
+    // 🔥 ESTADOS PARA LA PAGINACIÓN 🔥
+    const [paginaActual, setPaginaActual] = useState(1);
+    const salidasPorPagina = 5;
 
     useEffect(() => {
         const timer = setInterval(() => setHoraPeru(new Date()), 1000);
@@ -223,6 +229,7 @@ const DashboardAsesor = () => {
 
             viajesProcesados.sort((a, b) => a.fechaObjeto.getTime() - b.fechaObjeto.getTime());
             setSalidas(viajesProcesados);
+            setPaginaActual(1); // Reiniciar paginación al recargar datos
 
             const proximo = viajesProcesados.find(v => v.fechaObjeto > ahora && v.estadoVisual !== 'CANCELADO');
 
@@ -236,27 +243,9 @@ const DashboardAsesor = () => {
             setGraficoVentas(Object.entries(historicoDias).map(([name, value]) => ({ name, value })).sort((a,b) => a.name.localeCompare(b.name)));
             setGraficoPagos(Object.entries(metodosPago).map(([name, value]) => ({ name, value })));
 
+            // Aunque calculemos alertas, ya no las mostraremos visualmente para dar todo el espacio a la caja
             const nuevasAlertas: AlertaOperativa[] = [];
-            if (proximo) {
-                const diffMs = proximo.fechaObjeto.getTime() - ahora.getTime();
-                const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                
-                if (diffHrs < 2) {
-                    nuevasAlertas.push({
-                        id: 'prox-1', titulo: 'Zarpe Inminente',
-                        mensaje: `La nave ${proximo.nave} sale en menos de 2 horas hacia ${proximo.destino || proximo.ruta}.`,
-                        tipo: 'URGENTE', hora: proximo.hora
-                    });
-                }
-            }
-            const viajesCasiLlenos = viajesProcesados.filter(v => v.fechaObjeto > ahora && (v.total - v.ocupados) <= 5 && (v.total - v.ocupados) > 0 && v.estadoVisual !== 'CANCELADO');
-            viajesCasiLlenos.forEach(v => {
-                nuevasAlertas.push({
-                    id: `cupo-${v.id}`, titulo: 'Últimos Asientos',
-                    mensaje: `Quedan solo ${v.total - v.ocupados} pasajes para la ruta a ${v.destino || v.ruta} de las ${v.hora}.`,
-                    tipo: 'EXITO', hora: v.hora
-                });
-            });
+            // ... (Se mantiene lógica por debajo por si se ocupa en el futuro)
             setAlertas(nuevasAlertas);
 
         } catch (error) {
@@ -267,6 +256,15 @@ const DashboardAsesor = () => {
     };
 
     useEffect(() => { cargarDashboard(); }, []);
+
+    // 🔥 LÓGICA DE PAGINACIÓN CALCULADA 🔥
+    const indexUltimaSalida = paginaActual * salidasPorPagina;
+    const indexPrimeraSalida = indexUltimaSalida - salidasPorPagina;
+    const salidasPaginadas = salidas.slice(indexPrimeraSalida, indexUltimaSalida);
+    const totalPaginas = Math.ceil(salidas.length / salidasPorPagina);
+
+    const irPaginaAnterior = () => setPaginaActual((prev) => Math.max(prev - 1, 1));
+    const irPaginaSiguiente = () => setPaginaActual((prev) => Math.min(prev + 1, totalPaginas));
 
     return (
         <MainLayout>
@@ -441,7 +439,7 @@ const DashboardAsesor = () => {
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                             {/* IZQUIERDA: ITINERARIO */}
                             <div className="lg:col-span-8 flex flex-col gap-6">
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1">
+                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col">
                                     <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                                         <div>
                                             <h2 className="font-bold text-[#2A3F54] text-lg flex items-center gap-2">
@@ -450,7 +448,7 @@ const DashboardAsesor = () => {
                                         </div>
                                     </div>
                                     
-                                    <div className="overflow-x-auto">
+                                    <div className="overflow-x-auto flex-1">
                                         <table className="w-full text-sm text-left">
                                             <thead className="text-xs text-gray-400 uppercase bg-white border-b border-gray-100">
                                                 <tr>
@@ -461,10 +459,10 @@ const DashboardAsesor = () => {
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-gray-50">
-                                                {salidas.length === 0 ? (
+                                                {salidasPaginadas.length === 0 ? (
                                                     <tr><td colSpan={4} className="p-12 text-center text-gray-400 bg-gray-50">No hay viajes programados para esta semana.</td></tr>
                                                 ) : (
-                                                    salidas.map((salida) => {
+                                                    salidasPaginadas.map((salida) => {
                                                         const porcentaje = calcPorcentaje(salida.ocupados, salida.total);
                                                         return (
                                                             <tr key={salida.id} className="hover:bg-blue-50/30 transition-colors group">
@@ -520,60 +518,68 @@ const DashboardAsesor = () => {
                                             </tbody>
                                         </table>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* DERECHA: AVISOS */}
-                            <div className="lg:col-span-4 flex flex-col gap-6">
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1 h-full">
-                                    <div className="p-5 border-b border-gray-100 flex items-center gap-2 bg-yellow-50/30">
-                                        <AlertTriangle size={18} className="text-yellow-500" />
-                                        <h3 className="font-bold text-[#2A3F54] text-sm">Avisos del Sistema</h3>
-                                    </div>
                                     
-                                    <div className="p-5 space-y-4">
-                                        {alertas.length === 0 ? (
-                                            <p className="text-xs text-gray-400 italic text-center py-4">No hay alertas operativas.</p>
-                                        ) : (
-                                            alertas.map(alerta => (
-                                                <div key={alerta.id} className="flex gap-3 animate-in fade-in slide-in-from-right-4 duration-500">
-                                                    <div className={`w-1 rounded-full h-auto flex-shrink-0 
-                                                        ${alerta.tipo === 'URGENTE' ? 'bg-red-500' : 
-                                                        alerta.tipo === 'EXITO' ? 'bg-green-500' : 'bg-blue-400'}`}>
-                                                    </div>
-                                                    <div className="w-full">
-                                                        <div className="flex justify-between items-center w-full gap-4">
-                                                            <h4 className="text-xs font-bold text-gray-700">{alerta.titulo}</h4>
-                                                            <span className="text-[10px] text-gray-400 font-mono bg-gray-50 px-1 rounded">{alerta.hora}</span>
-                                                        </div>
-                                                        <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                                                            {alerta.mensaje}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                        
-                                        {/* CAJA Y TURNO REEMPLAZA AL ANTIGUO CIERRE OPERATIVO */}
-                                        <div className="flex gap-3 pt-4 border-t border-gray-100 mt-4">
-                                            <div className="w-1 bg-orange-400 rounded-full h-auto flex-shrink-0"></div>
-                                            <div className="w-full">
-                                                <h4 className="text-sm font-bold text-gray-800">Caja y Turno</h4>
-                                                <p className="text-xs text-gray-500 mt-1 leading-relaxed mb-3">
-                                                    Abre tu caja al iniciar el día y ciérrala antes de retirarte para cuadrar el efectivo.
-                                                </p>
+                                    {/* CONTROLES DE PAGINACIÓN */}
+                                    {totalPaginas > 1 && (
+                                        <div className="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-between bg-gray-50/50 gap-4">
+                                            <span className="text-xs text-gray-500 font-medium">
+                                                Mostrando {indexPrimeraSalida + 1} - {Math.min(indexUltimaSalida, salidas.length)} de {salidas.length} salidas
+                                            </span>
+                                            <div className="flex items-center gap-2">
                                                 <button 
-                                                    onClick={() => setModalCajaAbierto(true)}
-                                                    className="w-full bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200 font-bold py-2 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-all active:scale-95"
+                                                    onClick={irPaginaAnterior} 
+                                                    disabled={paginaActual === 1}
+                                                    className="px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-[#1ABB9C] hover:border-[#1ABB9C] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                                 >
-                                                    <Lock size={14}/> Gestionar Caja
+                                                    <ChevronLeft size={16}/>
+                                                </button>
+                                                <button 
+                                                    onClick={irPaginaSiguiente} 
+                                                    disabled={paginaActual === totalPaginas}
+                                                    className="px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-[#1ABB9C] hover:border-[#1ABB9C] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                                >
+                                                    <ChevronRight size={16}/>
                                                 </button>
                                             </div>
                                         </div>
+                                    )}
 
+                                </div>
+                            </div>
+
+                            {/* 🔥 DERECHA: CAJA VIBRANTE REDISEÑADA Y COMPACTA 🔥 */}
+                            <div className="lg:col-span-4 self-start">
+                                <div className="bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 rounded-2xl shadow-xl shadow-orange-300/40 overflow-hidden w-full flex flex-col relative group p-8">
+                                    {/* Elementos decorativos de fondo */}
+                                    <div className="absolute -right-10 -top-10 text-white/10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-700 pointer-events-none">
+                                        <Lock size={180} />
+                                    </div>
+                                    <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                                    
+                                    <div className="relative z-10 flex flex-col items-center justify-center text-center">
+                                        <div className="bg-white/20 p-5 rounded-full backdrop-blur-md border border-white/30 shadow-inner mb-5 group-hover:-translate-y-2 transition-transform duration-500">
+                                            <Lock size={48} className="text-white drop-shadow-md" />
+                                        </div>
+                                        
+                                        <h3 className="text-3xl font-black text-white tracking-tight mb-3 drop-shadow-md">
+                                            Gestión de Caja
+                                        </h3>
+                                        
+                                        <p className="text-orange-50 text-sm font-medium leading-relaxed opacity-90 px-2 mb-8">
+                                            Controla tus ingresos del turno. Abre tu caja al iniciar tu jornada y ciérrala antes de retirarte.
+                                        </p>
+                                        
+                                        <button 
+                                            onClick={() => setModalCajaAbierto(true)}
+                                            className="w-full bg-white text-orange-600 hover:text-rose-600 font-black py-4 px-6 rounded-xl shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-3 text-base border-b-4 border-orange-100"
+                                        >
+                                            <Activity size={20} className="animate-pulse" /> 
+                                            Abrir Panel de Caja
+                                        </button>
                                     </div>
                                 </div>
                             </div>
+
                         </div>
                     </>
                 )}

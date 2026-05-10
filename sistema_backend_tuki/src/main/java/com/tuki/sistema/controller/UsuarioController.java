@@ -33,9 +33,17 @@ public class UsuarioController {
 
     @PostMapping("/registro")
     public ResponseEntity<?> registrarUsuario(@RequestBody Map<String, Object> payload) {
-        String email = (String) payload.get("email");
+        String email = payload.get("email").toString().trim();
+        
         if (usuarioRepository.findByEmail(email).isPresent()) {
-            return ResponseEntity.badRequest().body("El email ya existe");
+            Usuario fantasma = usuarioRepository.findByEmail(email).get();
+            
+            if ("INACTIVO".equals(fantasma.getEstado()) || "ELIMINADO".equals(fantasma.getEstado())) {
+                fantasma.setEmail(fantasma.getEmail() + "_del_auto_" + System.currentTimeMillis());
+                usuarioRepository.save(fantasma);
+            } else {
+                return ResponseEntity.badRequest().body("El email ya existe y pertenece a un usuario ACTIVO");
+            }
         }
 
         Usuario u = new Usuario();
@@ -59,10 +67,6 @@ public class UsuarioController {
             }
         }
         
-        if (payload.get("tiempoEsperaMin") != null) {
-            u.setTiempoEsperaMin(Integer.valueOf(payload.get("tiempoEsperaMin").toString()));
-        }
-
         return ResponseEntity.ok(usuarioRepository.save(u));
     }
 
@@ -77,8 +81,14 @@ public class UsuarioController {
         if (payload.get("email") != null && !payload.get("email").toString().trim().isEmpty()) {
             String nuevoEmail = payload.get("email").toString().trim();
             Usuario existe = usuarioRepository.findByEmail(nuevoEmail).orElse(null);
+            
             if (existe != null && !existe.getIdUsuario().equals(id)) {
-                return ResponseEntity.badRequest().body("El email ya está en uso por otro usuario");
+                if ("INACTIVO".equals(existe.getEstado()) || "ELIMINADO".equals(existe.getEstado())) {
+                    existe.setEmail(existe.getEmail() + "_del_auto_" + System.currentTimeMillis());
+                    usuarioRepository.save(existe);
+                } else {
+                    return ResponseEntity.badRequest().body("El email ya está en uso por otro usuario ACTIVO");
+                }
             }
             u.setEmail(nuevoEmail);
         }
@@ -146,7 +156,6 @@ public class UsuarioController {
             Usuario u = usuarioRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
             
-            // 🛡️ 1. VALIDACIÓN IDOR: Protección de cuenta
             String emailAutenticado = SecurityContextHolder.getContext().getAuthentication().getName();
             if (!u.getEmail().equals(emailAutenticado)) {
                 return ResponseEntity.status(403).body(Map.of("error", "Acceso denegado. No puedes modificar el perfil de otro usuario."));
@@ -161,7 +170,12 @@ public class UsuarioController {
                 Usuario existe = usuarioRepository.findByEmail(nuevoEmail).orElse(null);
                 
                 if (existe != null && !existe.getIdUsuario().equals(id)) {
-                    return ResponseEntity.status(400).body(Map.of("error", "Ese correo ya está en uso por otro usuario"));
+                    if ("INACTIVO".equals(existe.getEstado()) || "ELIMINADO".equals(existe.getEstado())) {
+                        existe.setEmail(existe.getEmail() + "_del_auto_" + System.currentTimeMillis());
+                        usuarioRepository.save(existe);
+                    } else {
+                        return ResponseEntity.status(400).body(Map.of("error", "Ese correo ya está en uso por otro usuario ACTIVO"));
+                    }
                 }
                 u.setEmail(nuevoEmail);
             }
@@ -206,6 +220,11 @@ public class UsuarioController {
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
             
             u.setEstado("ELIMINADO");
+
+            if (!u.getEmail().contains("_del_")) {
+                u.setEmail(u.getEmail() + "_del_" + System.currentTimeMillis());
+            }
+
             usuarioRepository.save(u);
             
             return ResponseEntity.ok(Map.of("mensaje", "Usuario eliminado correctamente"));

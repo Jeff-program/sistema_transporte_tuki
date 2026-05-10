@@ -13,7 +13,7 @@ import { getViajesProgramados,getEscalasPorRuta,getTarifa,getRutas,getEmbarcacio
 import { getMapaAsientos } from '../../services/ventaService';
 import {
     Loader,MapPin,Anchor,Ticket,Calendar,Ship,AlertCircle,Trash2,Users,
-    User,Globe,Phone,CreditCard,ChevronDown,ArrowRight, Info, FormIcon
+    User,Globe,Phone,CreditCard,ChevronDown,FormIcon
 } from 'lucide-react';
 import {
     notificarError,notificarExito,notificarCarga,cerrarNotificacion
@@ -299,16 +299,6 @@ const VentaPage = () => {
         }
     };
 
-    const [animandoPrecio, setAnimandoPrecio] = useState(false);
-
-    useEffect(() => {
-        if (precioTramo > 0) {
-            setAnimandoPrecio(true);
-            const t = setTimeout(() => setAnimandoPrecio(false), 300);
-            return () => clearTimeout(t);
-        }
-    }, [precioTramo]);
-
     const onValidarFormulario = () => {
         const idTurno = localStorage.getItem('idTurnoCajaAbierta');
         if (!idTurno) return notificarError("Debe aperturar su caja antes de vender.");
@@ -407,224 +397,164 @@ const VentaPage = () => {
     const estadosVisuales = { ...mapaEstados };
     pasajerosWatch.forEach(c => { estadosVisuales[c.numeroAsiento] = 'SELECCIONADO'; });
 
-    const InfoChip = ({ icon: Icon, label, value, accent = false }: any) => (
-        <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm ${accent ? 'bg-[#1ABB9C]/10 text-[#1ABB9C] font-semibold' : 'bg-slate-50 text-slate-600'}`}>
-            <Icon size={15} strokeWidth={2.5} />
-            <div className="flex flex-col leading-tight">
-                <span className="text-[10px] uppercase tracking-wider font-bold opacity-70">{label}</span>
-                <span className="font-semibold">{value}</span>
-            </div>
-        </div>
-    );
-
     return (
         <MainLayout>
-            <div className="max-w-7xl mx-auto pb-3">
+            <div className="max-w-7xl mx-auto pb-6 pt-2 sm:pt-4 px-3 sm:px-6">
 
-                {/* HEADER */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in slide-in-from-top-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-[#2A3F54] flex items-center gap-3">
-                            <div  className="p-2 bg-blue-50 rounded-lg text-[#1ABB9C]"><Ticket size={20} /></div>
+                {/* 1. HEADER Y SELECTORES (APILADOS ARRIBA) */}
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-6 mb-6 animate-in slide-in-from-top-4">
+                    
+                    {/* Título y Tarifa global */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-1 pb-5 border-b border-slate-100">
+                        <div>
+                            <h1 className="text-xl sm:text-2xl font-black text-[#2A3F54] flex items-center gap-3">
+                                <div className="p-2 bg-blue-50 rounded-lg text-[#1ABB9C]"><Ticket size={20} /></div>
                                 Punto de Venta
-                        </h1>
-                        <p className="text-sm text-gray-400 mt-1 ml-1">
-                            Selecciona ruta y asientos para iniciar la venta
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        {viajeSeleccionado && (
-                            <div className="flex flex-wrap gap-2">
-                                <InfoChip
-                                    icon={Ship}
-                                    label="Embarcación"
-                                    value={viajeSeleccionado.nombreEmbarcacion}
-                                />
-                                <InfoChip
-                                    icon={Calendar}
-                                    label="Salida"
-                                    value={`${formatearFecha(viajeSeleccionado.fechaSalida)} · ${formatearHora(viajeSeleccionado.horaZarpe)}`}
-                                    accent
-                                />
-                            </div>
-                        )}
-                        <div className={`flex items-center gap-4 px-6 py-3 rounded-xl shadow-sm transition-all duration-300
-                            ${precioTramo > 0 ? 'bg-[#2dae94] text-white shadow-lg' : 'bg-gray-50 border border-gray-200 text-gray-400'}`}>
-                            <div className="text-right">
-                                <p className={`text-[10px] font-bold uppercase tracking-wider ${precioTramo > 0 ? 'text-white' : 'text-gray-400'}`}>
-                                    Tarifa por Pasajero
-                                </p>
-                                {loadingMapa ? (
-                                    <div className="h-6 w-20 bg-white/20 animate-pulse rounded mt-1"></div>
-                                ) : (
-                                    <div className="flex items-baseline gap-1 justify-end relative overflow-hidden">
-                                        <span className="text-sm font-medium">S/</span>
-
-                                        <span
-                                            key={precioTramo} 
-                                            className={`
-                                                text-2xl font-black transition-all duration-300 ease-out
-                                                ${precioTramo > 0 ? 'text-white' : 'text-gray-300'}
-                                                ${animandoPrecio ? 'scale-110 opacity-0' : 'scale-100 opacity-100'}
-                                            `}
-                                        >
-                                            {precioTramo > 0 ? precioTramo.toFixed(2) : '0.00'}
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                            <div className={`p-2 rounded-full ${precioTramo > 0 ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-400'}`}><Ticket size={20} /></div>
+                            </h1>
                         </div>
-                    </div>
-                </div>
-
-                {/* FILTROS DE VIAJE */}
-                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 p-1.5 mb-6">
-                    <div className="bg-gradient-to-r from-slate-50 to-white rounded-xl p-5 lg:p-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-end">
-                            {/* Selector de Viaje */}
-                            <div className="lg:col-span-5">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                    <Calendar size={13} className="text-[#1ABB9C]" />
-                                    Seleccione Zarpe
-                                </label>
-                                <div className="relative group">
-                                    <Ship size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#1ABB9C] transition-colors" />
-                                    <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                    <select
-                                        className="w-full appearance-none bg-white border border-slate-200 text-slate-700 font-semibold text-sm
-                                                   pl-10 pr-9 py-3 rounded-xl outline-none transition-all duration-200
-                                                   focus:border-[#1ABB9C] focus:ring-2 focus:ring-[#1ABB9C]/15 focus:bg-white
-                                                   hover:border-slate-300 cursor-pointer"
-                                        onChange={(e) => handleViajeChange(e.target.value)}
-                                        value={viajeSeleccionado?.idViaje || ''}
-                                    >
-                                        <option value="">Seleccione un viaje disponible</option>
-                                        {viajes.map(v => (
-                                            <option key={v.idViaje} value={v.idViaje}>
-                                                {formatearFecha(v.fechaSalida)} · {formatearHora(v.horaZarpe)} — {v.nombreRuta}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="hidden lg:flex lg:col-span-1 justify-center pb-3">
-                                <div className="w-px h-10 bg-gradient-to-b from-transparent via-slate-200 to-transparent" />
-                            </div>
-
-                            {/* Origen */}
-                            <div className="lg:col-span-3">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                    <MapPin size={13} className="text-blue-500" />
-                                    Puerto de Origen
-                                </label>
-                                <div className="relative">
-                                    <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                    <select
-                                        className="w-full appearance-none bg-white border border-slate-200 text-slate-700 font-semibold text-sm
-                                                   px-4 pr-9 py-3 rounded-xl outline-none transition-all duration-200
-                                                   focus:border-blue-400 focus:ring-2 focus:ring-blue-400/15
-                                                   hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                                        value={origenId}
-                                        onChange={(e) => setOrigenId(e.target.value)}
-                                        disabled={!viajeSeleccionado || puertosRuta.length === 0}
-                                    >
-                                        <option value="">Ciudad origen</option>
-                                        {puertosRuta.map(p => (
-                                            <option key={p.idPuerto} value={p.idPuerto}>{p.ciudad}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {/* Destino */}
-                            <div className="lg:col-span-3">
-                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                    <MapPin size={13} className="text-red-500" />
-                                    Puerto de Destino
-                                </label>
-                                <div className="relative">
-                                    <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                    <select
-                                        className="w-full appearance-none bg-white border border-slate-200 text-slate-700 font-semibold text-sm
-                                                   px-4 pr-9 py-3 rounded-xl outline-none transition-all duration-200
-                                                   focus:border-red-400 focus:ring-2 focus:ring-red-400/15
-                                                   hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                                        value={destinoId}
-                                        onChange={(e) => setDestinoId(e.target.value)}
-                                        disabled={!origenId}
-                                    >
-                                        <option value="">Ciudad destino</option>
-                                        {puertosRuta.map(p => (
-                                            <option
-                                                key={p.idPuerto}
-                                                value={p.idPuerto}
-                                                disabled={p.idPuerto == origenId}
+                        <div className="flex items-center gap-4">
+                            <div className={`flex items-center gap-3 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 rounded-xl shadow-sm transition-all duration-300 w-full sm:w-auto justify-between
+                                ${precioTramo > 0 ? 'bg-[#2dae94] text-white shadow-lg' : 'bg-gray-50 border border-gray-200 text-gray-400'}`}>
+                                <div className="text-left sm:text-right">
+                                    <p className={`text-[8px] font-bold uppercase tracking-wider ${precioTramo > 0 ? 'text-white' : 'text-gray-400'}`}>
+                                        Tarifa por Pasajero
+                                    </p>
+                                    {loadingMapa ? (
+                                        <div className="h-3 w-20 bg-white/20 animate-pulse rounded mt-1"></div>
+                                    ) : (
+                                        <div className="flex items-baseline gap-1 sm:justify-end relative overflow-hidden">
+                                            <span className="text-sm font-normal">S/</span>
+                                            <span key={precioTramo} 
+                                                  className={`text-xl sm:text-xl font-black transition-all duration-300 ease-out
+                                                    ${precioTramo > 0 ? 'text-white' : 'text-gray-300'}
+                                                  `}
                                             >
-                                                {p.ciudad} {p.idPuerto == origenId ? '(mismo origen)' : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                                {precioTramo > 0 ? precioTramo.toFixed(2) : '0.00'}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className={`p-2 rounded-full hidden sm:block ${precioTramo > 0 ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-400'}`}>
+                                    <Ticket size={20} />
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        {origenId && destinoId && (
-                            <div className="mt-4 flex items-center gap-3 px-4 py-3 bg-[#1ABB9C]/5 border border-[#1ABB9C]/20 rounded-xl">
-                                <Info size={15} className="text-[#1ABB9C] shrink-0" />
-                                <div className="flex items-center gap-2 text-sm">
-                                    <span className="font-bold text-slate-700">
-                                        {puertosRuta.find(p => p.idPuerto == origenId)?.ciudad}
-                                    </span>
-                                    <ArrowRight size={14} className="text-[#1ABB9C]" />
-                                    <span className="font-bold text-slate-700">
-                                        {puertosRuta.find(p => p.idPuerto == destinoId)?.ciudad}
-                                    </span>
-                                    <span className="text-slate-400 mx-1">|</span>
-                                    <span className="text-[#1ABB9C] font-extrabold">S/ {precioTramo.toFixed(2)}</span>
-                                    <span className="text-slate-400">por pasaje</span>
-                                </div>
+                    {/* Filtros: Zarpe, Origen, Destino */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                        {/* Zarpe */}
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                <Calendar size={13} className="text-[#1ABB9C]" /> Seleccione Zarpe
+                            </label>
+                            <div className="relative group">
+                                <Ship size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#1ABB9C] transition-colors" />
+                                <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <select
+                                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm
+                                               pl-10 pr-9 py-2.5 sm:py-3 rounded-xl outline-none transition-all duration-200
+                                               focus:border-[#1ABB9C] focus:ring-2 focus:ring-[#1ABB9C]/15 focus:bg-white
+                                               hover:border-slate-300 cursor-pointer text-ellipsis overflow-hidden whitespace-nowrap"
+                                    onChange={(e) => handleViajeChange(e.target.value)}
+                                    value={viajeSeleccionado?.idViaje || ''}
+                                >
+                                    <option value="">Seleccione un viaje disponible</option>
+                                    {viajes.map(v => (
+                                        <option key={v.idViaje} value={v.idViaje}>
+                                            {formatearFecha(v.fechaSalida)} · {formatearHora(v.horaZarpe)} —  {v.nombreRuta} 
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
-                        )}
+                        </div>
+
+                        {/* Origen */}
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                <MapPin size={13} className="text-blue-500" /> Origen
+                            </label>
+                            <div className="relative">
+                                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <select
+                                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm
+                                               px-3 sm:px-4 pr-8 py-2.5 sm:py-3 rounded-xl outline-none transition-all duration-200
+                                               focus:border-blue-400 focus:ring-2 focus:ring-blue-400/15 focus:bg-white
+                                               hover:border-slate-300 disabled:opacity-50 cursor-pointer"
+                                    value={origenId}
+                                    onChange={(e) => setOrigenId(e.target.value)}
+                                    disabled={!viajeSeleccionado || puertosRuta.length === 0}
+                                >
+                                    <option value="">Seleccione origen</option>
+                                    {puertosRuta.map(p => (
+                                        <option key={p.idPuerto} value={p.idPuerto}>{p.ciudad}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Destino */}
+                        <div>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                                <MapPin size={13} className="text-red-500" /> Destino
+                            </label>
+                            <div className="relative">
+                                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                <select
+                                    className="w-full appearance-none bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-sm
+                                               px-3 sm:px-4 pr-8 py-2.5 sm:py-3 rounded-xl outline-none transition-all duration-200
+                                               focus:border-red-400 focus:ring-2 focus:ring-red-400/15 focus:bg-white
+                                               hover:border-slate-300 disabled:opacity-50 cursor-pointer"
+                                    value={destinoId}
+                                    onChange={(e) => setDestinoId(e.target.value)}
+                                    disabled={!origenId}
+                                >
+                                    <option value="">Seleccione destino</option>
+                                    {puertosRuta.map(p => (
+                                        <option key={p.idPuerto} value={p.idPuerto} disabled={p.idPuerto == origenId}>
+                                            {p.ciudad} {p.idPuerto == origenId ? '(Origen)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* CONTENIDO PRINCIPAL: MAPA | FORMULARIO */}
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                {/* 2. CONTENIDO PRINCIPAL: MAPA (Izquierda 5 cols) Y FORMULARIO (Derecha 7 cols) */}
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
 
-                    {/* MAPA DE ASIENTOS (8 cols) */}
-                    <div className="xl:col-span-7">
+                    {/* MAPA DE ASIENTOS */}
+                    <div className="xl:col-span-7 w-full xl:sticky xl:top-4">
                         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                                        <Anchor size={16} className="text-slate-500" />
+                            <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-200 flex items-center justify-center shadow-inner">
+                                        <Anchor size={14} className="text-slate-600" />
                                     </div>
                                     <div>
-                                        <h2 className="text-sm font-extrabold text-slate-700 uppercase tracking-wide">Mapa de Asientos</h2>
-                                        <p className="text-[11px] text-slate-400 font-medium">
-                                            {viajeSeleccionado ? naveCompleta?.nombre || viajeSeleccionado.nombreEmbarcacion : 'Seleccione un viaje'}
+                                        <h2 className="text-xs sm:text-sm font-extrabold text-[#2A3F54] uppercase tracking-wide">Mapa de Asientos</h2>
+                                        <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate max-w-[150px] sm:max-w-xs">
+                                            {viajeSeleccionado ? naveCompleta?.nombre || viajeSeleccionado.nombreEmbarcacion : 'Esperando selección'}
                                         </p>
                                     </div>
                                 </div>
                                 {fields.length > 0 && (
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1ABB9C]/10 text-[#1ABB9C] rounded-lg text-xs font-bold">
-                                        <Users size={13} />
-                                        {fields.length} seleccionados
+                                    <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-[#1ABB9C]/10 text-[#1ABB9C] rounded-lg text-[10px] sm:text-xs font-bold border border-[#1ABB9C]/20">
+                                        <Users size={12} />
+                                        {fields.length} <span className="hidden sm:inline">seleccionados</span>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="p-4 lg:p-6 bg-slate-50/50 min-h-[580px] flex flex-col items-center justify-center relative">
+                            <div className="p-2 sm:p-4 lg:p-6 min-h-[400px] xl:min-h-[500px] flex flex-col items-center justify-center relative bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-slate-50/30">
                                 {viajeSeleccionado && origenId && destinoId ? (
                                     loadingMapa ? (
-                                        <div className="text-center flex flex-col items-center py-20">
-                                            <div className="w-14 h-14 rounded-2xl bg-[#1ABB9C]/10 flex items-center justify-center mb-4">
-                                                <Loader className="animate-spin text-[#1ABB9C]" size={28} />
+                                        <div className="text-center flex flex-col items-center py-10 sm:py-20">
+                                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[#1ABB9C]/10 flex items-center justify-center mb-3 sm:mb-4">
+                                                <Loader className="animate-spin text-[#1ABB9C]" size={24} />
                                             </div>
-                                            <p className="text-slate-500 text-sm font-semibold">Cargando disponibilidad...</p>
-                                            <p className="text-slate-400 text-xs mt-1">Obteniendo mapa de asientos en tiempo real</p>
+                                            <p className="text-slate-500 text-xs sm:text-sm font-semibold">Cargando disponibilidad...</p>
                                         </div>
                                     ) : (
                                         <div className="w-full flex justify-center relative">
@@ -638,26 +568,23 @@ const VentaPage = () => {
                                                 nombreEmbarcacion={viajeSeleccionado.nombreEmbarcacion}
                                             />
                                             {precioTramo <= 0 && (
-                                                <div className="absolute inset-0 bg-white/60 backdrop-blur-md z-20 flex flex-col items-center justify-center rounded-3xl">
-                                                    <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-4">
-                                                        <AlertCircle size={32} className="text-red-500" />
+                                                <div className="absolute inset-0 bg-white/60 backdrop-blur-md z-20 flex flex-col items-center justify-center rounded-3xl p-4">
+                                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-red-50 flex items-center justify-center mb-3 sm:mb-4 shadow-sm border border-red-100">
+                                                        <AlertCircle size={28} className="text-red-500" />
                                                     </div>
-                                                    <h3 className="text-red-600 font-extrabold text-lg">Tarifa no disponible</h3>
-                                                    <p className="text-slate-500 text-sm mt-1 max-w-xs text-center">
-                                                        No se ha configurado un precio para el tramo seleccionado. Contacte al administrador.
-                                                    </p>
+                                                    <h3 className="text-red-600 font-extrabold text-base sm:text-lg text-center">Tarifa no disponible</h3>
                                                 </div>
                                             )}
                                         </div>
                                     )
                                 ) : (
-                                    <div className="text-center py-20">
-                                        <div className="w-20 h-20 rounded-3xl bg-slate-100 flex items-center justify-center mx-auto mb-5">
-                                            <Anchor className="text-slate-300" size={40} />
+                                    <div className="text-center py-10 sm:py-20 opacity-60 px-4">
+                                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-slate-200 flex items-center justify-center mx-auto mb-4 sm:mb-5 shadow-inner">
+                                            <Ship className="text-slate-400" size={32} />
                                         </div>
-                                        <h3 className="text-slate-500 font-bold text-lg mb-1">Mapa de Asientos</h3>
-                                        <p className="text-slate-400 text-sm max-w-xs mx-auto">
-                                            Complete la información del viaje, origen y destino para visualizar los asientos disponibles.
+                                        <h3 className="text-slate-600 font-bold text-base sm:text-lg mb-1">Esperando Selección</h3>
+                                        <p className="text-slate-500 text-xs sm:text-sm max-w-xs mx-auto">
+                                            Configure el zarpe, origen y destino en la parte superior.
                                         </p>
                                     </div>
                                 )}
@@ -665,39 +592,36 @@ const VentaPage = () => {
                         </div>
                     </div>
 
-                    {/* FORMULARIO Y PAGO (4 cols) */}
-                    <div className="xl:col-span-5 flex flex-col gap-6">
-
-                        {/* Panel de pasajeros */}
-                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 flex flex-col overflow-hidden"
-                             style={{ maxHeight: 'calc(100vh - 100px)' }}> 
-
+                    {/* FORMULARIO DE PASAJEROS */}
+                    <div className="xl:col-span-5 w-full h-full">
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 h-full min-h-[600px] xl:h-[calc(100vh-120px)]"> 
+                            
                             {/* Header del formulario */}
-                            <div className=" bg-[#2A3F54] px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-lg bg-[#1ABB9C]/10 flex items-center justify-center">
-                                        <FormIcon size={16} className="text-[#1ABB9C]" />
+                            <div className="bg-[#2A3F54] px-4 sm:px-5 py-3 sm:py-4 border-b border-[#1c2a38] flex items-center justify-between shrink-0 shadow-sm">
+                                <div className="flex items-center gap-2 sm:gap-2.5">
+                                    <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-[#1ABB9C]/20 flex items-center justify-center">
+                                        <FormIcon size={14} className="text-[#1ABB9C]" />
                                     </div>
-                                    <h2 className="text-sm font-extrabold text-[#FFFF] uppercase tracking-wide">
-                                        formulario de venta
+                                    <h2 className="text-xs sm:text-sm font-extrabold text-white uppercase tracking-wide">
+                                        Datos de Pasajeros
                                     </h2>
                                 </div>
-                                <span className="bg-slate-100 text-blue-600 px-2.5 py-1 rounded-lg text-xs font-bold border border-slate-200">
+                                <span className="bg-[#1c2a38] text-[#1ABB9C] px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-bold shadow-inner">
                                     {fields.length} asiento{fields.length !== 1 ? 's' : ''}
                                 </span>
                             </div>
 
                             <form onSubmit={handleSubmit(onValidarFormulario)} className="flex flex-col flex-1 overflow-hidden">
                                 {/* Lista de pasajeros scrolleable */}
-                                <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white"
+                                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4 bg-slate-50/50"
                                      style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}>
                                     {fields.length === 0 ? (
-                                        <div className="text-center py-16">
-                                            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                                        <div className="text-center py-10 sm:py-16 opacity-70 px-4">
+                                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center mx-auto mb-3 sm:mb-4">
                                                 <Ticket size={24} className="text-slate-300" />
                                             </div>
-                                            <p className="text-slate-400 text-sm font-medium">No hay asientos seleccionados</p>
-                                            <p className="text-slate-300 text-xs mt-1">Haga clic en el mapa para agregar pasajeros</p>
+                                            <p className="text-slate-500 text-xs sm:text-sm font-bold">No hay asientos seleccionados</p>
+                                            <p className="text-slate-400 text-[10px] sm:text-xs mt-1 max-w-[200px] sm:max-w-xs mx-auto">Seleccione al menos un asiento libre en el mapa de la izquierda.</p>
                                         </div>
                                     ) : (
                                         fields.map((field, index) => {
@@ -706,42 +630,47 @@ const VentaPage = () => {
 
                                             return (
                                                 <div key={field.id}
-                                                     className="bg-white rounded-xl border border-slate-200 p-4 relative
-                                                                hover:border-slate-300 hover:shadow-md transition-all duration-200 group">
+                                                     className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 relative
+                                                                hover:border-[#1ABB9C]/40 hover:shadow-md transition-all duration-200 group">
                                                     <button
                                                         type="button"
                                                         onClick={() => remove(index)}
-                                                        className="absolute top-3 right-3 w-7 h-7 rounded-lg bg-slate-100 text-slate-400
-                                                                   hover:bg-red-50 hover:text-red-500 transition-all flex items-center justify-center"
+                                                        className="absolute top-3 sm:top-4 right-3 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-slate-50 border border-slate-100 text-slate-400
+                                                                   hover:bg-red-50 hover:border-red-100 hover:text-red-500 transition-all flex items-center justify-center"
                                                         title="Liberar asiento"
                                                     >
                                                         <Trash2 size={14} />
                                                     </button>
 
-                                                    {/* Cabecera de tarjeta */}
-                                                    <div className="flex items-end gap-2 mb-4 pr-8">
-                                                        <h3 className="text-sm font-bold text-[#2A3F54] uppercase mb-4 flex items-center gap-2 border-b border-gray-200 pb-2">
-                                                            <User size={16} className="text-[#1ABB9C]"/> 
-                                                            Datos del Pasajero - <span className="text-[#1ABB9C]">Asiento</span>
-                                                            <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1ABB9C] to-[#169d82] flex items-center justify-center text-white text-[16px] font-extrabold">{field.numeroAsiento}</span>
-                                                        </h3>
+                                                    {/* Cabecera de tarjeta de pasajero */}
+                                                    <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-5 border-b border-slate-100 pb-2.5 sm:pb-3 pr-8 sm:pr-10">
+                                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#1ABB9C] to-[#169d82] flex items-center justify-center text-white text-base sm:text-lg font-black shadow-sm shadow-[#1ABB9C]/30">
+                                                            {field.numeroAsiento}
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Asiento</h3>
+                                                            <p className="text-xs sm:text-sm font-bold text-[#2A3F54] leading-none mt-1 flex items-center gap-1.5">
+                                                                <User size={12} className="text-[#1ABB9C]"/> 
+                                                                Pasajero {index + 1}
+                                                            </p>
+                                                        </div>
                                                     </div>
 
                                                     {/* Campos del formulario */}
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                                         {/* Documento */}
                                                         <div className="sm:col-span-2">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                                                            <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
                                                                 Documento de identidad
                                                             </label>
-                                                            <div className={`flex rounded-lg overflow-hidden border transition-all duration-200 ${
+                                                            <div className={`flex rounded-xl overflow-hidden border transition-all duration-200 bg-white ${
                                                                 errorPasajero?.numeroDocumento
-                                                                    ? 'border-red-300 ring-1 ring-red-300'
-                                                                    : 'border-slate-200 focus-within:border-[#1ABB9C] focus-within:ring-1 focus-within:ring-[#1ABB9C]/20'
+                                                                    ? 'border-red-300 ring-2 ring-red-300/20'
+                                                                    : 'border-slate-200 focus-within:border-[#1ABB9C] focus-within:ring-2 focus-within:ring-[#1ABB9C]/15'
                                                             }`}>
                                                                 <select
                                                                     {...register(`pasajeros.${index}.tipoDocumento`)}
-                                                                    className="bg-slate-100 border-r border-slate-200 px-2.5 text-xs outline-none text-slate-600 font-bold cursor-pointer hover:bg-slate-200 transition-colors uppercase"
+                                                                    className="bg-slate-50 border-r border-slate-200 px-2 sm:px-3 py-2 sm:py-3 text-[10px] sm:text-xs outline-none text-slate-700 font-bold cursor-pointer hover:bg-slate-100 transition-colors uppercase"
                                                                 >
                                                                     <option value="DNI">DNI</option>
                                                                     <option value="CARNET_EXTRANJERIA">CE</option>
@@ -766,11 +695,11 @@ const VentaPage = () => {
                                                                         }
                                                                     }}
                                                                     placeholder={tipoDoc === 'DNI' ? '8 dígitos' : tipoDoc === 'CARNET_EXTRANJERIA' ? '9 dígitos' : 'Nro. Pasaporte'}
-                                                                    className="w-full p-2.5 text-sm outline-none font-mono text-slate-700 bg-white uppercase"
+                                                                    className="w-full p-2 sm:p-3 text-xs sm:text-sm outline-none font-mono font-medium text-slate-700 bg-transparent uppercase placeholder:font-sans"
                                                                 />
                                                             </div>
                                                             {errorPasajero?.numeroDocumento && (
-                                                                <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-medium">
+                                                                <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
                                                                     <AlertCircle size={10} /> {errorPasajero.numeroDocumento.message}
                                                                 </p>
                                                             )}
@@ -778,7 +707,7 @@ const VentaPage = () => {
 
                                                         {/* Nombres */}
                                                         <div className="sm:col-span-2">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                                                            <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
                                                                 Nombres
                                                             </label>
                                                             <input
@@ -788,7 +717,7 @@ const VentaPage = () => {
                                                                 placeholder="EJ: JUAN CARLOS"
                                                             />
                                                             {errorPasajero?.nombres && (
-                                                                <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-medium">
+                                                                <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
                                                                     <AlertCircle size={10} />{errorPasajero.nombres.message}
                                                                 </p>
                                                             )}
@@ -796,7 +725,7 @@ const VentaPage = () => {
 
                                                         {/* Apellidos */}
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                                                            <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
                                                                 Apellido Paterno
                                                             </label>
                                                             <input
@@ -806,13 +735,13 @@ const VentaPage = () => {
                                                                 placeholder="EJ: PÉREZ"
                                                             />
                                                             {errorPasajero?.apellidoPaterno && (
-                                                                <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-medium">
+                                                                <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
                                                                     <AlertCircle size={10} />{errorPasajero.apellidoPaterno.message}
                                                                 </p>
                                                             )}
                                                         </div>
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                                                            <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
                                                                 Apellido Materno
                                                             </label>
                                                             <input
@@ -822,7 +751,7 @@ const VentaPage = () => {
                                                                 placeholder="EJ: GARCÍA"
                                                             />
                                                             {errorPasajero?.apellidoMaterno && (
-                                                                <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-medium">
+                                                                <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
                                                                     <AlertCircle size={10} />{errorPasajero.apellidoMaterno.message}
                                                                 </p>
                                                             )}
@@ -830,7 +759,7 @@ const VentaPage = () => {
 
                                                         {/* Fecha y Nacionalidad */}
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+                                                            <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">
                                                                 F. Nacimiento
                                                             </label>
                                                             <input
@@ -840,14 +769,14 @@ const VentaPage = () => {
                                                                 className={getInputClass(errorPasajero?.fechaNacimiento)}
                                                             />
                                                             {errorPasajero?.fechaNacimiento && (
-                                                                <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-medium">
+                                                                <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
                                                                     <AlertCircle size={10} />{errorPasajero.fechaNacimiento.message}
                                                                 </p>
                                                             )}
                                                         </div>
                                                         <div>
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                                                                <Globe size={10} /> Nacionalidad
+                                                            <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                                                <Globe size={11} className="text-slate-400" /> Nacionalidad
                                                             </label>
                                                             <input
                                                                 type="text"
@@ -857,7 +786,7 @@ const VentaPage = () => {
                                                                 placeholder="EJ: PERUANA"
                                                             />
                                                             {errorPasajero?.nacionalidad && (
-                                                                <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-medium">
+                                                                <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
                                                                     <AlertCircle size={10} />{errorPasajero.nacionalidad.message}
                                                                 </p>
                                                             )}
@@ -865,8 +794,8 @@ const VentaPage = () => {
 
                                                         {/* Teléfono */}
                                                         <div className="sm:col-span-2">
-                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
-                                                                <Phone size={10} /> Teléfono <span className="text-slate-300 font-normal">(opcional)</span>
+                                                            <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                                                <Phone size={11} className="text-slate-400" /> Teléfono <span className="text-slate-300 font-normal lowercase">(opcional)</span>
                                                             </label>
                                                             <input
                                                                 type="tel"
@@ -877,7 +806,7 @@ const VentaPage = () => {
                                                                 placeholder="Ej. 987654321"
                                                             />
                                                             {errorPasajero?.telefono && (
-                                                                <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-medium">
+                                                                <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
                                                                     <AlertCircle size={10} />{errorPasajero.telefono.message}
                                                                 </p>
                                                             )}
@@ -890,28 +819,24 @@ const VentaPage = () => {
                                 </div>
 
                                 {/* Footer: Total y botón de pago */}
-                                <div className="p-5 bg-[#FFFF] border-t border-slate-200 shrink-0">
-                                    {/* Resumen de pago */}
-                                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-4 shadow-sm">
-                                        <div className="flex items-center gap-2 mb-3">
-                                            <div className="w-6 h-6 rounded-md bg-[#1ABB9C]/15 flex items-center justify-center">
-                                                <CreditCard size={13} className="text-[#1ABB9C]" />
+                                <div className="p-4 sm:p-5 bg-white border-t border-slate-200 shrink-0 shadow-[0_-4px_15px_rgba(0,0,0,0.02)]">
+                                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-4 mb-3 sm:mb-4">
+                                        <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#2A3F54] flex items-center justify-center">
+                                                <CreditCard size={12} className="text-white" />
                                             </div>
-                                            <span className="text-[12px] font-bold text-black uppercase tracking-wider">Resumen de pago</span>
+                                            <span className="text-[10px] sm:text-[11px] font-extrabold text-[#2A3F54] uppercase tracking-wider">Resumen de Venta</span>
                                         </div>
-                                        <div className="flex justify-between items-center bg-white p-3 rounded border border-blue-100 shadow-sm">
+                                        <div className="flex justify-between items-center bg-white p-2.5 sm:p-3 rounded-lg border border-slate-200 shadow-sm">
                                             <div>
-                                                <p className="text-xs text-black font-medium">{fields.length} pasaje(s) seleccionados</p>
-                                                <p className="text-[10px] font-bold text-blue-600 mt-0.5">
-                                                    {origenId && destinoId
-                                                        ? `${puertosRuta.find(p => p.idPuerto == origenId)?.ciudad} → ${puertosRuta.find(p => p.idPuerto == destinoId)?.ciudad}`
-                                                        : 'Seleccione origen y destino'
-                                                    }
+                                                <p className="text-[10px] sm:text-xs text-slate-500 font-medium">Asientos Seleccionados</p>
+                                                <p className="text-xs sm:text-sm font-black text-[#2A3F54] mt-0.5">
+                                                    {fields.length} pasaje(s)
                                                 </p>
                                             </div>
                                             <div className="text-right">
-                                                <p className="text-[10px] text-black font-bold uppercase">Total</p>
-                                                <p className="text-2xl font-black text-[#2A3F54] tracking-tight">
+                                                <p className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Total a Pagar</p>
+                                                <p className="text-xl sm:text-2xl font-black text-[#1ABB9C] tracking-tight leading-none">
                                                     S/ {totalCarrito.toFixed(2)}
                                                 </p>
                                             </div>
@@ -921,19 +846,20 @@ const VentaPage = () => {
                                     <button
                                         type="submit"
                                         disabled={fields.length === 0}
-                                        className="w-full py-3.5 bg-gradient-to-r from-[#1ABB9C] to-[#15997D] hover:from-[#18c9a5] hover:to-[#1ABB9C]
-                                                   text-white font-extrabold text-sm rounded-xl shadow-lg shadow-[#1ABB9C]/25
-                                                   transition-all duration-200 disabled:opacity-30 disabled:shadow-none
+                                        className="w-full py-3 sm:py-4 bg-gradient-to-r from-[#1ABB9C] to-[#15997D] hover:from-[#18c9a5] hover:to-[#1ABB9C]
+                                                   text-white font-black text-xs sm:text-sm rounded-xl shadow-[0_8px_20px_rgba(26,187,156,0.25)]
+                                                   transition-all duration-300 disabled:opacity-40 disabled:shadow-none
                                                    disabled:cursor-not-allowed flex justify-center items-center gap-2
-                                                   active:scale-[0.98] hover:shadow-xl hover:shadow-[#1ABB9C]/30"
+                                                   active:scale-[0.98] hover:shadow-[0_8px_25px_rgba(26,187,156,0.35)]"
                                     >
-                                        <CreditCard size={18} strokeWidth={2.5} />
-                                        PROCEDER AL PAGO
+                                        <CreditCard size={16} strokeWidth={2.5} />
+                                        PROCESAR PAGO
                                     </button>
                                 </div>
                             </form>
                         </div>
                     </div>
+
                 </div>
 
                 {/* MODALES */}
