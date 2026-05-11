@@ -71,7 +71,7 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
       <div 
         key={idAsiento} 
         onClick={() => estado !== 'BLOQUEADO' && onSeleccionarAsiento(idAsiento)} 
-        className={`relative w-[44px] h-[40px] sm:w-[48px] rounded-t-[10px] rounded-b-[4px] border-[1.5px] border-white/60 flex flex-col overflow-hidden transition-all select-none box-border ${colorClass} ${cursorClass}`} 
+        className={`shrink-0 relative w-[44px] h-[40px] sm:w-[48px] sm:h-[44px] rounded-t-[10px] rounded-b-[4px] border-[1.5px] border-white/60 flex flex-col overflow-hidden transition-all select-none box-border ${colorClass} ${cursorClass}`} 
         title={`Asiento ${idAsiento}: ${estado}`}
       >
         <div className="flex-1 flex items-center justify-center pt-0.5">
@@ -90,16 +90,16 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
       const grupos = layout.split(separador); 
       
       return (
-        <div key={`fila-${fila}`} className="flex justify-between items-center w-full mb-2 px-2 sm:px-4">
-            <div className="flex gap-1.5 sm:gap-2 flex-1 pr-3 sm:pr-5">
+        <div key={`fila-${fila}`} className="flex justify-between items-center w-full mb-2 px-4 sm:px-6">
+            <div className="flex gap-1.5 sm:gap-2 shrink-0 justify-end pr-3 sm:pr-5">
                 {grupos[0].split('').map(letra => renderAsiento(fila, letra))}
             </div>
             
-            <div className="w-8 flex justify-center items-center opacity-50 select-none">
-                <span className="text-xs font-bold text-gray-400 font-mono">{fila}</span>
+            <div className="w-8 shrink-0 flex justify-center items-center opacity-50 select-none">
+
             </div>
 
-            <div className="flex gap-1.5 sm:gap-2 justify-start pl-3 sm:pl-5">
+            <div className="flex gap-1.5 sm:gap-2 shrink-0 justify-start pl-3 sm:pl-5">
                 {grupos[1] ? grupos[1].split('').map(letra => renderAsiento(fila, letra)) : null}
             </div>
         </div>
@@ -109,7 +109,7 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
   // --- RENDER DE SERVICIOS (Snacks y Baños) ---
   const renderServicio = (key: string | number, detalle: string) => {
     return (
-      <div key={key} className="w-full flex justify-between items-center my-6 px-6 pointer-events-none select-none">
+      <div key={key} className="w-full flex justify-between items-center my-6 px-6 pointer-events-none select-none shrink-0">
          <div className="w-[45%] h-16 bg-orange-50 border-2 border-orange-200 border-dashed rounded-lg flex items-center justify-center gap-2 opacity-80">
             <span className="text-2xl">🍔</span>
             <span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest hidden sm:inline">
@@ -138,10 +138,10 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
   });
 
   return (
-        <div className="flex flex-col items-center py-0 bg-slate-50 min-h-[calc(100vh-150px)] w-full rounded-3xl">
+        <div className="flex flex-col items-center py-0 bg-transparent w-full">
 
-            {/* BANNER SUPERIOR */}
-            <div className="w-full max-w-[480px] bg-white shadow-md border border-gray-200 rounded-xl p-3 mb-4">
+            {/* BANNER SUPERIOR (Estático, fuera del scroll horizontal) */}
+            <div className="w-full max-w-[480px] bg-white shadow-md border border-gray-200 rounded-xl p-3 mb-4 sticky left-0">
                 <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
                     <Ship size={12}/> {nombreEmbarcacion}
                 </h4>
@@ -169,24 +169,31 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
                 </div>
             </div>
 
-            {/* BARCO */}
-            <div className="relative bg-white pt-48 pb-10 px-2 sm:px-6 rounded-[12rem_12rem_3rem_3rem] border-[6px] border-slate-300 shadow-2xl w-[95%] max-w-[480px] min-h-[600px] flex flex-col items-center transition-all duration-500 overflow-hidden">
+            {/* CONTENEDOR CON SCROLL HORIZONTAL */}
+            <div 
+                className="w-full overflow-x-auto lg:overflow-x-hidden pb-8 px-2" 
+                style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}
+            >
+                {/* BARCO DINÁMICO (Crece a lo ancho y largo: w-fit, h-fit) */}
+                <div className="relative bg-white pt-48 pb-10 rounded-[12rem_12rem_3rem_3rem] border-[6px] border-slate-300 shadow-2xl w-fit min-w-[340px] sm:min-w-[400px] h-fit min-h-[400px] flex flex-col items-center transition-all duration-500 overflow-hidden mx-auto">
 
-                {/* PROA */}
-                <div className="absolute top-0 w-full h-40 bg-gradient-to-b from-slate-100 to-white flex flex-col items-center justify-center pt-8 border-b border-slate-100 z-0">
-                    <span className="text-4xl opacity-20">⚓</span>
-                    <span className="text-lg font-black text-[#2A3F54] uppercase mt-2 tracking-widest">{nombreEmbarcacion}</span>
-                    <span className="text-[9px] font-bold text-slate-400 tracking-[0.3em]">PROA</span>
-                </div>
+                    {/* PROA */}
+                    <div className="absolute top-0 w-full h-40 bg-gradient-to-b from-slate-100 to-white flex flex-col items-center justify-center pt-8 border-b border-slate-100 z-0">
+                        <span className="text-4xl opacity-20">⚓</span>
+                        <span className="text-lg font-black text-[#2A3F54] uppercase mt-2 tracking-widest">{nombreEmbarcacion}</span>
+                        <span className="text-[9px] font-bold text-slate-400 tracking-[0.3em]">PROA</span>
+                    </div>
 
-                <div className="z-10 w-full mt-4 flex flex-col gap-2 items-center">
-                    {elementosLancha}
-                </div>
+                    <div className="z-10 w-full mt-4 flex flex-col gap-2 items-center">
+                        {elementosLancha}
+                    </div>
 
-                <div className="mt-12 w-full border-t-4 border-slate-200 pt-4 flex flex-col items-center">
-                    <div className="w-3/4 h-2 bg-slate-200 rounded-full mb-2"></div>
-                    <div className="w-1/2 h-2 bg-slate-200 rounded-full"></div>
-                    <span className="text-[10px] font-bold text-slate-400 tracking-[0.3em] mt-4">POPA / MOTOR</span>
+                    {/* POPA */}
+                    <div className="mt-12 w-full border-t-4 border-slate-200 pt-4 flex flex-col items-center">
+                        <div className="w-3/4 h-2 bg-slate-200 rounded-full mb-2"></div>
+                        <div className="w-1/2 h-2 bg-slate-200 rounded-full"></div>
+                        <span className="text-[10px] font-bold text-slate-400 tracking-[0.3em] mt-4">POPA / MOTOR</span>
+                    </div>
                 </div>
             </div>
 

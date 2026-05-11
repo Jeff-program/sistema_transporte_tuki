@@ -13,7 +13,7 @@ import { getViajesProgramados,getEscalasPorRuta,getTarifa,getRutas,getEmbarcacio
 import { getMapaAsientos } from '../../services/ventaService';
 import {
     Loader,MapPin,Anchor,Ticket,Calendar,Ship,AlertCircle,Trash2,Users,
-    User,Globe,Phone,CreditCard,ChevronDown,FormIcon
+    User,Globe,Phone,CreditCard,ChevronDown,ArrowRight, FormIcon, RefreshCw
 } from 'lucide-react';
 import {
     notificarError,notificarExito,notificarCarga,cerrarNotificacion
@@ -92,6 +92,9 @@ const VentaPage = () => {
     const [mapaEstados, setMapaEstados] = useState<Record<string, string>>({});
     const [loadingMapa, setLoadingMapa] = useState(false);
     const [precioTramo, setPrecioTramo] = useState<number>(0);
+    
+    // 🔥 NUEVO ESTADO PARA EL BOTÓN DE REFRESCAR VIAJES 🔥
+    const [isRefreshingViajes, setIsRefreshingViajes] = useState(false);
 
     const [mostrarModalPago, setMostrarModalPago] = useState(false);
     const [ticketData, setTicketData] = useState<{ venta: any, pago: any } | null>(null);
@@ -143,17 +146,25 @@ const VentaPage = () => {
                 : 'border-slate-200 bg-slate-50/50 text-slate-800 placeholder-slate-400 focus:border-[#1ABB9C] focus:bg-white focus:ring-2 focus:ring-[#1ABB9C]/15 hover:border-slate-300'
         }`;
 
-    useEffect(() => {
-        getViajesProgramados()
-            .then((data: any[]) => {
-                const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-                setViajes(data.filter(v =>
-                    v.estado === 'PROGRAMADO' &&
-                    (!v.fechaSalida || new Date(v.fechaSalida + 'T00:00:00') >= hoy)
-                ));
-            })
-            .catch(() => setViajes([]));
+    // 🔥 NUEVA FUNCIÓN QUE PODEMOS LLAMAR CUANDO QUERAMOS 🔥
+    const cargarViajesDisponibles = async () => {
+        setIsRefreshingViajes(true);
+        try {
+            const data = await getViajesProgramados();
+            const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+            setViajes(data.filter(v =>
+                v.estado === 'PROGRAMADO' &&
+                (!v.fechaSalida || new Date(v.fechaSalida + 'T00:00:00') >= hoy)
+            ));
+        } catch (error) {
+            setViajes([]);
+        } finally {
+            setIsRefreshingViajes(false);
+        }
+    };
 
+    useEffect(() => {
+        cargarViajesDisponibles();
         getRutas().then(setRutasTotales);
         getEmbarcaciones().then(setFlotaTotal);
     }, []);
@@ -442,12 +453,25 @@ const VentaPage = () => {
                     </div>
 
                     {/* Filtros: Zarpe, Origen, Destino */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4">
                         {/* Zarpe */}
                         <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                                <Calendar size={13} className="text-[#1ABB9C]" /> Seleccione Zarpe
-                            </label>
+                            {/* 🔥 HEADER DEL ZARPE CON BOTÓN DE ACTUALIZAR 🔥 */}
+                            <div className="flex items-center justify-between mb-1.5">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Calendar size={13} className="text-[#1ABB9C]" /> Seleccione Zarpe
+                                </label>
+                                <button 
+                                    type="button"
+                                    onClick={cargarViajesDisponibles}
+                                    disabled={isRefreshingViajes}
+                                    className="text-slate-400 hover:text-[#1ABB9C] transition-colors flex items-center gap-1 text-[9px] font-bold uppercase disabled:opacity-50"
+                                    title="Actualizar lista de viajes"
+                                >
+                                    <RefreshCw size={12} className={isRefreshingViajes ? "animate-spin text-[#1ABB9C]" : ""} />
+                                    Actualizar
+                                </button>
+                            </div>
                             <div className="relative group">
                                 <Ship size={17} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#1ABB9C] transition-colors" />
                                 <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -471,7 +495,7 @@ const VentaPage = () => {
 
                         {/* Origen */}
                         <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 h-[18px]">
                                 <MapPin size={13} className="text-blue-500" /> Origen
                             </label>
                             <div className="relative">
@@ -495,7 +519,7 @@ const VentaPage = () => {
 
                         {/* Destino */}
                         <div>
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 h-[18px]">
                                 <MapPin size={13} className="text-red-500" /> Destino
                             </label>
                             <div className="relative">
@@ -594,7 +618,7 @@ const VentaPage = () => {
 
                     {/* FORMULARIO DE PASAJEROS */}
                     <div className="xl:col-span-5 w-full h-full">
-                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 h-full min-h-[600px] xl:h-[calc(100vh-120px)]"> 
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-h-[600px] xl:h-[calc(100vh-120px)]"> 
                             
                             {/* Header del formulario */}
                             <div className="bg-[#2A3F54] px-4 sm:px-5 py-3 sm:py-4 border-b border-[#1c2a38] flex items-center justify-between shrink-0 shadow-sm">
