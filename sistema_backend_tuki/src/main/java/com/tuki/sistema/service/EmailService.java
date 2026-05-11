@@ -2,6 +2,7 @@ package com.tuki.sistema.service;
 
 import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -30,7 +31,6 @@ public class EmailService {
                         <!-- ENCABEZADO CON DEGRADADO Y LOGO CIRCULAR -->
                         <div style="background: linear-gradient(135deg, #2A3F54, #1c2b39); padding: 45px 20px 35px; text-align: center;">
                             
-                            <!-- 🔥 CONTENEDOR CIRCULAR BLANCO DE 160px 🔥 -->
                             <div style="width: 160px; height: 160px; background-color: #ffffff; 
                                         border-radius: 50%%; margin: 0 auto; display: inline-block; 
                                         text-align: center; line-height: 160px; overflow: hidden;
@@ -98,7 +98,7 @@ public class EmailService {
 
             helper.setText(htmlMsg, true);
 
-            FileSystemResource logo = new FileSystemResource("src/main/resources/static/logo.png");
+            ClassPathResource logo = new ClassPathResource("static/logo.png");
             helper.addInline("logoTuki", logo);
 
             mailSender.send(message);

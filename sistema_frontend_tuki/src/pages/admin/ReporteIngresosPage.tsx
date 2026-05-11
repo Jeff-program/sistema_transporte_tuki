@@ -632,16 +632,53 @@ const ReporteIngresosPage = () => {
 
                 {/* FILTROS Y BOTÓN DE CONTROL DE CAJA */}
                 <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 focus-within:border-emerald-500 transition-colors">
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+
+                        <div className="
+                            flex flex-wrap sm:flex-nowrap items-center gap-3 
+                            bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 
+                            focus-within:border-emerald-500 transition-colors
+                            w-full sm:w-auto
+                        ">
                             <Calendar size={16} className="text-emerald-500"/>
-                            <span className="text-xs font-black text-gray-400 uppercase">Periodo:</span>
-                            <input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} className="bg-transparent text-sm font-bold outline-none text-[#2A3F54]"/>
-                            <span className="text-gray-300 font-bold">-</span>
-                            <input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className="bg-transparent text-sm font-bold outline-none text-[#2A3F54]"/>
+
+                            <span className="text-xs font-black text-gray-400 uppercase">
+                                Periodo:
+                            </span>
+
+                            <input
+                                type="date"
+                                value={fechaInicio}
+                                onChange={e => setFechaInicio(e.target.value)}
+                                className="
+                                    bg-transparent text-sm font-bold outline-none text-[#2A3F54]
+                                    w-full sm:w-auto
+                                "
+                            />
+
+                            <span className="text-gray-300 font-bold hidden sm:block">-</span>
+
+                            <input
+                                type="date"
+                                value={fechaFin}
+                                onChange={e => setFechaFin(e.target.value)}
+                                className="
+                                    bg-transparent text-sm font-bold outline-none text-[#2A3F54]
+                                    w-full sm:w-auto
+                                "
+                            />
                         </div>
+
                         {(fechaInicio || fechaFin) && (
-                            <button onClick={limpiarFiltros} className="flex items-center gap-2 text-xs font-bold text-rose-500 hover:text-rose-700 bg-rose-50 px-3 py-2 rounded-xl transition-colors border border-rose-100">
+                            <button
+                                onClick={limpiarFiltros}
+                                className="
+                                    flex items-center gap-2 text-xs font-bold text-rose-500 
+                                    hover:text-rose-700 bg-rose-50 px-3 py-2 rounded-xl 
+                                    transition-colors border border-rose-100
+                                    w-full sm:w-auto justify-center
+                                "
+                            >
                                 <XCircle size={14}/> Limpiar
                             </button>
                         )}
