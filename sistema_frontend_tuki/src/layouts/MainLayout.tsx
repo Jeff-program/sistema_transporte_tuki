@@ -8,6 +8,8 @@ interface MainLayoutProps {
   children: ReactNode;
 }
 
+const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+
 const MainLayout = ({ children }: MainLayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -125,7 +127,7 @@ const MainLayout = ({ children }: MainLayoutProps) => {
                 <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full overflow-hidden bg-gradient-to-tr from-[#2A3F54] to-[#3E5367] flex items-center justify-center text-white font-bold text-xs sm:text-sm shadow-md border-2 border-white">
                   {user?.fotoUrl && !fotoError ? (
                       <img 
-                          src={user.fotoUrl?.startsWith('http') ? user.fotoUrl : `http://localhost:8080${user.fotoUrl}`} 
+                          src={user.fotoUrl?.startsWith('http') ? user.fotoUrl : `${baseUrl}${user.fotoUrl}`} 
                           alt="Perfil" 
                           className="h-full w-full object-cover bg-white"
                           onError={() => setFotoError(true)} 
