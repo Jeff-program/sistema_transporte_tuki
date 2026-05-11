@@ -140,7 +140,7 @@ const RiosPage = () => {
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-blue-50 rounded-xl text-blue-500"><Waves size={28} /></div>
                         <div>
-                            <h1 className="text-2xl font-bold text-[#2A3F54]">Gestión de Ríos / Cuencas</h1>
+                            <h1 className="text-2xl font-bold text-[#2A3F54]">Gestión de Ríos</h1>
                             <p className="text-sm text-gray-400 mt-1">Administra los ríos y ejes comerciales para agrupar los puertos.</p>
                         </div>
                     </div>

@@ -508,15 +508,14 @@ const EmbarcacionesPage = () => {
             </div>
         </div>
 
-        {/* 🔥 MODAL FLOTANTE DE CREACIÓN / EDICIÓN DE EMBARCACIÓN 🔥 */}
+        {/* MODAL FLOTANTE DE CREACIÓN / EDICIÓN DE EMBARCACIÓN */}
         {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200 overflow-y-auto">
                 
-
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-200 max-h-[95vh]">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-200 my-auto md:max-h-[90vh]">
                     
                     {/* PANEL IZQUIERDO: FORMULARIO */}
-                    <div className="w-full md:w-3/5 flex flex-col border-r border-gray-100">
+                    <div className="w-full md:w-3/5 flex flex-col border-b md:border-b-0 md:border-r border-gray-100">
                         {/* Cabecera del Modal */}
                         <div className={`p-5 flex justify-between items-center shrink-0 ${editando ? 'bg-gradient-to-r from-blue-600 to-blue-500' : 'bg-gradient-to-r from-[#2A3F54] to-[#3E5367]'}`}>
                             <h3 className="font-bold text-white text-lg flex items-center gap-2">
@@ -594,9 +593,30 @@ const EmbarcacionesPage = () => {
                                                     </div>
                                                     {sec.tipo === 'ASIENTOS' ? (
                                                         <div className="grid grid-cols-3 gap-2 items-end pr-8">
-                                                            <div><label className="text-[9px] text-gray-400 font-bold uppercase block mb-1">Cant. Filas</label><input type="number" min="1" className="w-full border rounded-lg p-1.5 text-center text-xs font-bold bg-white outline-none focus:border-blue-400" value={sec.cantidadFilas} onChange={(e) => actualizarSeccion(idx, 'cantidadFilas', parseInt(e.target.value) || 0)}/></div>
-                                                            <div><label className="text-[9px] text-gray-400 font-bold uppercase block mb-1 text-center">Asientos Izq.</label><input type="number" min="0" max="6" className="w-full border rounded-lg p-1.5 text-center text-xs font-bold bg-white outline-none focus:border-blue-400" value={sec.asientosIzq} onChange={(e) => actualizarSeccion(idx, 'asientosIzq', parseInt(e.target.value) || 0)}/></div>
-                                                            <div><label className="text-[9px] text-gray-400 font-bold uppercase block mb-1 text-center">Asientos Der.</label><input type="number" min="0" max="6" className="w-full border rounded-lg p-1.5 text-center text-xs font-bold bg-white outline-none focus:border-blue-400" value={sec.asientosDer} onChange={(e) => actualizarSeccion(idx, 'asientosDer', parseInt(e.target.value) || 0)}/></div>
+                                                            <div>
+                                                                <label className="text-[9px] text-gray-400 font-bold uppercase block mb-1">Cant. Filas</label>
+                                                                <input type="number" min="1" 
+                                                                    className="w-full border rounded-lg p-1.5 text-center text-xs font-bold bg-white outline-none focus:border-blue-400 appearance-auto [&::-webkit-inner-spin-button]:appearance-auto [&::-webkit-outer-spin-button]:appearance-auto" 
+                                                                    value={sec.cantidadFilas} 
+                                                                    onChange={(e) => actualizarSeccion(idx, 'cantidadFilas', parseInt(e.target.value) || 0)}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[9px] text-gray-400 font-bold uppercase block mb-1 text-center">Asientos Izq.</label>
+                                                                <input type="number" min="0" max="6" 
+                                                                    className="w-full border rounded-lg p-1.5 text-center text-xs font-bold bg-white outline-none focus:border-blue-400 appearance-auto [&::-webkit-inner-spin-button]:appearance-auto [&::-webkit-outer-spin-button]:appearance-auto" 
+                                                                    value={sec.asientosIzq} 
+                                                                    onChange={(e) => actualizarSeccion(idx, 'asientosIzq', parseInt(e.target.value) || 0)}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[9px] text-gray-400 font-bold uppercase block mb-1 text-center">Asientos Der.</label>
+                                                                <input type="number" min="0" max="6" 
+                                                                    className="w-full border rounded-lg p-1.5 text-center text-xs font-bold bg-white outline-none focus:border-blue-400 appearance-auto [&::-webkit-inner-spin-button]:appearance-auto [&::-webkit-outer-spin-button]:appearance-auto" 
+                                                                    value={sec.asientosDer} 
+                                                                    onChange={(e) => actualizarSeccion(idx, 'asientosDer', parseInt(e.target.value) || 0)}
+                                                                />
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <div className="pr-8"><label className="text-[9px] text-gray-400 font-bold uppercase block mb-1">Detalle</label><select className="w-full text-xs border border-gray-300 p-2 rounded-lg bg-white outline-none focus:border-blue-400" value={sec.detalleServicio} onChange={(e) => actualizarSeccion(idx, 'detalleServicio', e.target.value)}><option value="SNACK_BANO">Área de Snack y Baño</option></select></div>
@@ -632,9 +652,9 @@ const EmbarcacionesPage = () => {
                         </div>
                     </div>
 
-                    {/* PANEL DERECHO: VISTA PREVIA DEL BARCO (Solo visible en Desktop/Tablet) */}
-                    <div className="hidden md:flex w-2/5 bg-slate-50 flex-col items-center justify-start p-6 relative">
-                        <button onClick={handleCerrarModal} className="absolute top-4 right-4 text-gray-400 hover:text-[#2A3F54] bg-white border border-gray-200 hover:border-gray-400 p-1.5 rounded-lg transition-colors shadow-sm z-10">
+                    {/* PANEL DERECHO: VISTA PREVIA DEL BARCO (Ahora visible en todos los dispositivos) */}
+                    <div className="flex w-full md:w-2/5 bg-slate-50 flex-col items-center justify-start p-6 relative">
+                        <button onClick={handleCerrarModal} className="hidden md:block absolute top-4 right-4 text-gray-400 hover:text-[#2A3F54] bg-white border border-gray-200 hover:border-gray-400 p-1.5 rounded-lg transition-colors shadow-sm z-10">
                             <X size={20} />
                         </button>
                         

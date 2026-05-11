@@ -689,10 +689,10 @@ const RutasPage = () => {
             </div>
         </div>
 
-        {/* 🔥 MODAL DE CREACIÓN / EDITAR DE RUTAS 🔥 */}
+        {/* MODAL DE CREACIÓN / EDITAR DE RUTAS */}
         {isModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 max-h-[95vh]">
+            <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200 overflow-y-auto">
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 my-auto md:max-h-[90vh]">
                     
                     {/* Cabecera del Modal */}
                     <div className={`p-5 flex justify-between items-center shrink-0 ${editando ? 'bg-gradient-to-r from-blue-600 to-blue-500' : 'bg-gradient-to-r from-[#2A3F54] to-[#3E5367]'}`}>
@@ -774,8 +774,9 @@ const RutasPage = () => {
                                     <button type="button" disabled={!rioSeleccionado} onClick={() => agregarEscala({ puertoId: '', hora: '', minuto: '', ampm: 'AM' })} className="text-[10px] bg-white text-orange-600 px-3 py-1.5 rounded-lg border border-orange-200 hover:bg-orange-100 flex items-center gap-1 font-bold transition-colors shadow-sm disabled:opacity-50"><Plus size={12}/> Agregar</button>
                                 </div>
                                 
+                                {/* Encabezados solo en pantallas desktop/tablet */}
                                 {camposEscalas.length > 0 && (
-                                    <div className="flex gap-2 px-1 mb-2 mt-2">
+                                    <div className="hidden sm:flex gap-2 px-1 mb-2 mt-2">
                                         <div className="w-5"></div>
                                         <div className="flex-1 text-[10px] font-bold text-orange-600 uppercase tracking-wider pl-1">Puerto de Escala</div>
                                         <div className="w-[140px] text-[10px] font-bold text-orange-600 uppercase tracking-wider text-center">Hora Embarque</div>
@@ -783,53 +784,74 @@ const RutasPage = () => {
                                     </div>
                                 )}
 
-                                <div className="space-y-2">
+                                <div className="space-y-2 mt-2">
                                     {camposEscalas.map((item, index) => {
                                         const errorPuerto = errors?.escalasIntermedias?.[index]?.puertoId;
                                         const errorHora = errors?.escalasIntermedias?.[index]?.hora;
                                         const errorMinuto = errors?.escalasIntermedias?.[index]?.minuto;
 
                                         return (
-                                        <div key={item.id} className="flex gap-2 items-center animate-in slide-in-from-left-2 duration-200">
-                                            <span className="text-[10px] font-bold text-orange-400 bg-white w-5 h-5 shrink-0 flex items-center justify-center rounded-full border border-orange-100">{index + 1}</span>
+                                        <div key={item.id} className="flex flex-col sm:flex-row gap-2 sm:items-center animate-in slide-in-from-left-2 duration-200 bg-white sm:bg-transparent p-3 sm:p-0 rounded-xl sm:rounded-none border border-orange-100 sm:border-none shadow-sm sm:shadow-none mb-2 sm:mb-0">
                                             
-                                            <select 
-                                                {...register(`escalasIntermedias.${index}.puertoId` as const, {required: true})} 
-                                                className={`flex-1 min-w-0 border ${errorPuerto ? 'border-red-400 bg-red-50' : 'border-gray-200'} p-2 text-xs rounded-lg focus:border-orange-400 outline-none bg-white`}
-                                            >
-                                                <option value="">-- Parada --</option>
-                                                {getPuertosDisponibles(index).map(p => (<option key={p.idPuerto} value={p.idPuerto}>{p.ciudad} - ( {p.nombrePuerto} )</option>))}
-                                            </select>
+                                            {/* Cabecera Móvil */}
+                                            <div className="flex sm:hidden justify-between items-center mb-1">
+                                                <span className="text-[10px] font-bold text-orange-600 uppercase tracking-wider flex items-center gap-1">
+                                                    <span className="text-[10px] font-bold text-orange-400 bg-orange-50 w-5 h-5 flex items-center justify-center rounded-full border border-orange-100">{index + 1}</span>
+                                                    Escala
+                                                </span>
+                                                <button type="button" onClick={() => quitarEscala(index)} className="p-1.5 shrink-0 text-red-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                                                    <Trash2 size={14}/>
+                                                </button>
+                                            </div>
 
-                                            <div className={`flex items-center gap-1 w-[140px] shrink-0 bg-white border ${errorHora || errorMinuto ? 'border-red-400 bg-red-50' : 'border-gray-200'} rounded-lg p-1 focus-within:border-orange-400 transition-colors`}>
+                                            {/* Selector de Puerto */}
+                                            <div className="flex items-center gap-2 flex-1">
+                                                <span className="hidden sm:flex text-[10px] font-bold text-orange-400 bg-white w-5 h-5 shrink-0 items-center justify-center rounded-full border border-orange-100">{index + 1}</span>
+                                                
                                                 <select 
-                                                    {...register(`escalasIntermedias.${index}.hora` as const, {required: true})} 
-                                                    className="w-10 text-xs font-bold text-gray-600 bg-transparent outline-none appearance-none text-center cursor-pointer"
+                                                    {...register(`escalasIntermedias.${index}.puertoId` as const, {required: true})} 
+                                                    className={`w-full sm:flex-1 min-w-0 border ${errorPuerto ? 'border-red-400 bg-red-50' : 'border-gray-200'} p-2 text-xs rounded-lg focus:border-orange-400 outline-none bg-white`}
                                                 >
-                                                    <option value="">--</option>
-                                                    {Array.from({length: 12}, (_, i) => i + 1).map(h => (
-                                                        <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</option>
-                                                    ))}
-                                                </select>
-                                                <span className="text-gray-400 font-bold">:</span>
-                                                <select 
-                                                    {...register(`escalasIntermedias.${index}.minuto` as const, {required: true})} 
-                                                    className="w-10 text-xs font-bold text-gray-600 bg-transparent outline-none appearance-none text-center cursor-pointer"
-                                                >
-                                                    <option value="">--</option>
-                                                    {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => (
-                                                        <option key={m} value={m}>{m}</option>
-                                                    ))}
-                                                </select>
-                                                <select {...register(`escalasIntermedias.${index}.ampm` as const)} className="w-12 text-xs font-bold text-orange-600 bg-orange-50 rounded outline-none cursor-pointer">
-                                                    <option value="AM">AM</option>
-                                                    <option value="PM">PM</option>
+                                                    <option value="">-- Parada --</option>
+                                                    {getPuertosDisponibles(index).map(p => (<option key={p.idPuerto} value={p.idPuerto}>{p.ciudad} - ( {p.nombrePuerto} )</option>))}
                                                 </select>
                                             </div>
 
-                                            <button type="button" onClick={() => quitarEscala(index)} className="p-1.5 shrink-0 text-red-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors"><Trash2 size={14}/></button>
+                                            {/* Controles de Hora y Botón Borrar (Desktop) */}
+                                            <div className="flex items-center justify-between sm:justify-start gap-2 mt-2 sm:mt-0">
+                                                <span className="sm:hidden text-[10px] font-bold text-orange-600 uppercase tracking-wider">Hora:</span>
+                                                <div className={`flex items-center justify-center gap-1 flex-1 sm:flex-none sm:w-[140px] shrink-0 bg-white border ${errorHora || errorMinuto ? 'border-red-400 bg-red-50' : 'border-gray-200'} rounded-lg p-1 focus-within:border-orange-400 transition-colors`}>
+                                                    <select 
+                                                        {...register(`escalasIntermedias.${index}.hora` as const, {required: true})} 
+                                                        className="w-10 text-xs font-bold text-gray-600 bg-transparent outline-none appearance-none text-center cursor-pointer"
+                                                    >
+                                                        <option value="">--</option>
+                                                        {Array.from({length: 12}, (_, i) => i + 1).map(h => (
+                                                            <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</option>
+                                                        ))}
+                                                    </select>
+                                                    <span className="text-gray-400 font-bold">:</span>
+                                                    <select 
+                                                        {...register(`escalasIntermedias.${index}.minuto` as const, {required: true})} 
+                                                        className="w-10 text-xs font-bold text-gray-600 bg-transparent outline-none appearance-none text-center cursor-pointer"
+                                                    >
+                                                        <option value="">--</option>
+                                                        {['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'].map(m => (
+                                                            <option key={m} value={m}>{m}</option>
+                                                        ))}
+                                                    </select>
+                                                    <select {...register(`escalasIntermedias.${index}.ampm` as const)} className="w-12 text-xs font-bold text-orange-600 bg-orange-50 rounded outline-none cursor-pointer">
+                                                        <option value="AM">AM</option>
+                                                        <option value="PM">PM</option>
+                                                    </select>
+                                                </div>
+                                                <button type="button" onClick={() => quitarEscala(index)} className="hidden sm:block p-1.5 shrink-0 text-red-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                                                    <Trash2 size={14}/>
+                                                </button>
+                                            </div>
                                         </div>
-                                    )})}
+                                        )
+                                    })}
                                     {camposEscalas.length === 0 && <div className="text-center p-3 border border-dashed border-orange-200 rounded-lg bg-white/50"><p className="text-[10px] text-orange-400 italic">Ruta Directa</p></div>}
                                 </div>
                             </div>
