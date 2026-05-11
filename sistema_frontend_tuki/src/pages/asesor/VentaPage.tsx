@@ -53,6 +53,16 @@ const ventaGrupalSchema = yup.object({
     pasajeros: yup.array().of(pasajeroSchema).min(1, 'Seleccione al menos un asiento')
 });
 
+const NACIONALIDADES = [
+    "PERUANA",
+    "ALEMANA", "ARGENTINA", "AUSTRALIANA", "BOLIVIANA", "BRASILEÑA",
+    "BRITÁNICA", "CANADIENSE", "CHILENA", "CHINA", "COLOMBIANA",
+    "COSTARRICENSE", "CUBANA", "ECUATORIANA", "ESPAÑOLA", "ESTADOUNIDENSE",
+    "FRANCESA", "HOLANDESA", "ISRAELÍ", "ITALIANA", "JAPONESA",
+    "MEXICANA", "PANAMEÑA", "PARAGUAYA", "PORTUGUESA", "SUECA",
+    "SUIZA", "SURCOREANA", "URUGUAYA", "VENEZOLANA"
+];
+
 const calcularFechaEscalaVenta = (fechaSalidaViaje: string, puertosRuta: any[], origenId: string) => {
     if (!fechaSalidaViaje || !puertosRuta || puertosRuta.length === 0) return fechaSalidaViaje;
 
@@ -93,7 +103,6 @@ const VentaPage = () => {
     const [loadingMapa, setLoadingMapa] = useState(false);
     const [precioTramo, setPrecioTramo] = useState<number>(0);
     
-    // 🔥 NUEVO ESTADO PARA EL BOTÓN DE REFRESCAR VIAJES 🔥
     const [isRefreshingViajes, setIsRefreshingViajes] = useState(false);
 
     const [mostrarModalPago, setMostrarModalPago] = useState(false);
@@ -146,7 +155,6 @@ const VentaPage = () => {
                 : 'border-slate-200 bg-slate-50/50 text-slate-800 placeholder-slate-400 focus:border-[#1ABB9C] focus:bg-white focus:ring-2 focus:ring-[#1ABB9C]/15 hover:border-slate-300'
         }`;
 
-    // 🔥 NUEVA FUNCIÓN QUE PODEMOS LLAMAR CUANDO QUERAMOS 🔥
     const cargarViajesDisponibles = async () => {
         setIsRefreshingViajes(true);
         try {
@@ -269,21 +277,30 @@ const VentaPage = () => {
         if (mapaEstados[asientoStr] === 'VENDIDO') return notificarError(`Asiento ${asientoStr} vendido.`);
 
         const index = fields.findIndex(f => f.numeroAsiento === asientoStr);
+        
         if (index !== -1) {
             remove(index);
         } else {
-            append({
-                numeroAsiento: asientoStr,
-                precio: precioTramo,
-                tipoDocumento: 'DNI',
-                numeroDocumento: '',
-                nombres: '',
-                apellidoPaterno: '',
-                apellidoMaterno: '',
-                fechaNacimiento: '',
-                nacionalidad: 'PERUANA',
-                telefono: ''
-            });
+            const pasajerosActuales = getValues("pasajeros") || [];
+            const indexSinAsiento = pasajerosActuales.findIndex(p => p.numeroAsiento === '');
+            
+            if (indexSinAsiento !== -1) {
+                setValue(`pasajeros.${indexSinAsiento}.numeroAsiento`, asientoStr, { shouldValidate: true });
+                notificarExito(`Asiento ${asientoStr} reasignado al Pasajero ${indexSinAsiento + 1}`);
+            } else {
+                append({
+                    numeroAsiento: asientoStr,
+                    precio: precioTramo,
+                    tipoDocumento: 'DNI',
+                    numeroDocumento: '',
+                    nombres: '',
+                    apellidoPaterno: '',
+                    apellidoMaterno: '',
+                    fechaNacimiento: '',
+                    nacionalidad: 'PERUANA',
+                    telefono: ''
+                });
+            }
         }
     };
 
@@ -313,6 +330,13 @@ const VentaPage = () => {
     const onValidarFormulario = () => {
         const idTurno = localStorage.getItem('idTurnoCajaAbierta');
         if (!idTurno) return notificarError("Debe aperturar su caja antes de vender.");
+        
+        // Verificamos que no intenten pagar si tienen un pasajero sin asiento
+        const haySinAsiento = pasajerosWatch.some(p => p.numeroAsiento === '');
+        if (haySinAsiento) {
+            return notificarError("Hay pasajeros sin asiento asignado. Por favor, seleccione asientos libres en el mapa.");
+        }
+        
         setMostrarModalPago(true);
     };
 
@@ -382,6 +406,8 @@ const VentaPage = () => {
         } catch (error: any) {
             cerrarNotificacion(toastId);
             
+            setMostrarModalPago(false);
+            
             const msjError = error.response?.data?.mensaje || error.response?.data || "El asiento ya fue comprado. Verifique disponibilidad.";
             notificarError(msjError);
 
@@ -393,7 +419,8 @@ const VentaPage = () => {
                     
                     for (let i = pasajerosActuales.length - 1; i >= 0; i--) {
                         if (mapaFresco[pasajerosActuales[i].numeroAsiento] === 'VENDIDO') {
-                            remove(i); 
+                            // SOLO LE QUITAMOS EL NUMERO DE ASIENTO, PERO CONSERVAMOS LOS DATOS DEL PASAJERO
+                            setValue(`pasajeros.${i}.numeroAsiento`, '', { shouldValidate: true }); 
                         }
                     }
                 })
@@ -406,7 +433,11 @@ const VentaPage = () => {
         : null;
 
     const estadosVisuales = { ...mapaEstados };
-    pasajerosWatch.forEach(c => { estadosVisuales[c.numeroAsiento] = 'SELECCIONADO'; });
+    pasajerosWatch.forEach(c => { 
+        if(c.numeroAsiento !== '') {
+            estadosVisuales[c.numeroAsiento] = 'SELECCIONADO'; 
+        }
+    });
 
     return (
         <MainLayout>
@@ -456,7 +487,7 @@ const VentaPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4">
                         {/* Zarpe */}
                         <div>
-                            {/* 🔥 HEADER DEL ZARPE CON BOTÓN DE ACTUALIZAR 🔥 */}
+                            {/* HEADER DEL ZARPE CON BOTÓN DE ACTUALIZAR */}
                             <div className="flex items-center justify-between mb-1.5">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                                     <Calendar size={13} className="text-[#1ABB9C]" /> Seleccione Zarpe
@@ -618,7 +649,7 @@ const VentaPage = () => {
 
                     {/* FORMULARIO DE PASAJEROS */}
                     <div className="xl:col-span-5 w-full h-full">
-                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-h-[600px] xl:h-[calc(100vh-120px)]"> 
+                        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm shadow-slate-200/50 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 w-full min-h-[800px] xl:h-[calc(111vh-120px)]"> 
                             
                             {/* Header del formulario */}
                             <div className="bg-[#2A3F54] px-4 sm:px-5 py-3 sm:py-4 border-b border-[#1c2a38] flex items-center justify-between shrink-0 shadow-sm">
@@ -651,6 +682,7 @@ const VentaPage = () => {
                                         fields.map((field, index) => {
                                             const errorPasajero = errors.pasajeros?.[index] as any;
                                             const tipoDoc = pasajerosWatch[index]?.tipoDocumento;
+                                            const asientoActual = pasajerosWatch[index]?.numeroAsiento;
 
                                             return (
                                                 <div key={field.id}
@@ -666,15 +698,23 @@ const VentaPage = () => {
                                                         <Trash2 size={14} />
                                                     </button>
 
-                                                    {/* Cabecera de tarjeta de pasajero */}
+                                                    {/* Cabecera de tarjeta de pasajero dinámica */}
                                                     <div className="flex items-center gap-2.5 sm:gap-3 mb-4 sm:mb-5 border-b border-slate-100 pb-2.5 sm:pb-3 pr-8 sm:pr-10">
-                                                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#1ABB9C] to-[#169d82] flex items-center justify-center text-white text-base sm:text-lg font-black shadow-sm shadow-[#1ABB9C]/30">
-                                                            {field.numeroAsiento}
-                                                        </div>
+                                                        {asientoActual === '' ? (
+                                                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-red-500 flex items-center justify-center text-white text-xl font-black shadow-sm animate-pulse shadow-red-500/40" title="Seleccione un nuevo asiento">
+                                                                !
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-base sm:text-lg font-black shadow-sm shadow-blue-500/30">
+                                                                {asientoActual}
+                                                            </div>
+                                                        )}
                                                         <div>
-                                                            <h3 className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">Asiento</h3>
-                                                            <p className="text-xs sm:text-sm font-bold text-[#2A3F54] leading-none mt-1 flex items-center gap-1.5">
-                                                                <User size={12} className="text-[#1ABB9C]"/> 
+                                                            <h3 className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                                                {asientoActual === '' ? '⚠️ SELECCIONE OTRO ASIENTO' : 'Asiento'}
+                                                            </h3>
+                                                            <p className={`text-xs sm:text-sm font-bold leading-none mt-1 flex items-center gap-1.5 ${asientoActual === '' ? 'text-red-500' : 'text-[#2A3F54]'}`}>
+                                                                <User size={12} className={asientoActual === '' ? 'text-red-500' : 'text-blue-500'}/> 
                                                                 Pasajero {index + 1}
                                                             </p>
                                                         </div>
@@ -802,17 +842,22 @@ const VentaPage = () => {
                                                             <label className="text-[9px] sm:text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                                                                 <Globe size={11} className="text-slate-400" /> Nacionalidad
                                                             </label>
-                                                            <input
-                                                                type="text"
-                                                                {...register(`pasajeros.${index}.nacionalidad`)}
-                                                                onInput={(e) => e.currentTarget.value = e.currentTarget.value.replace(/[^A-Za-zÑñÁáÉéÍíÓóÚúÜü\s]/g, '').toUpperCase()}
-                                                                className={getInputClass(errorPasajero?.nacionalidad)}
-                                                                placeholder="EJ: PERUANA"
-                                                            />
+                                                            <div className="relative">
+                                                                <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                                                <select
+                                                                    {...register(`pasajeros.${index}.nacionalidad`)}
+                                                                    className={`${getInputClass(errorPasajero?.nacionalidad)} appearance-none pr-8 cursor-pointer bg-white`}
+                                                                >
+                                                                    <option value="">SELECCIONE...</option>
+                                                                    {NACIONALIDADES.map(nac => (
+                                                                        <option key={nac} value={nac}>{nac}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
                                                             {errorPasajero?.nacionalidad && (
-                                                                <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
-                                                                    <AlertCircle size={10} />{errorPasajero.nacionalidad.message}
-                                                                </p>
+                                                            <p className="text-red-500 text-[9px] sm:text-[10px] mt-1.5 flex items-center gap-1 font-bold">
+                                                                <AlertCircle size={10} />{errorPasajero.nacionalidad.message}
+                                                            </p>
                                                             )}
                                                         </div>
 
@@ -893,10 +938,11 @@ const VentaPage = () => {
                     montoTotal={totalCarrito}
                     pasajeroNombreDefecto={
                         pasajerosWatch[0]?.nombres
-                            ? `${pasajerosWatch[0].nombres} ${pasajerosWatch[0].apellidoPaterno}`
+                            ? `${pasajerosWatch[0].nombres} ${pasajerosWatch[0].apellidoPaterno} ${pasajerosWatch[0].apellidoMaterno || ''}`.trim()
                             : ''
                     }
                     pasajeroDocumentoDefecto={pasajerosWatch[0]?.numeroDocumento || ''}
+                    pasajeroTipoDocDefecto={pasajerosWatch[0]?.tipoDocumento || 'DNI'}
                     onConfirmarPago={procesarPagoGrupal}
                 />
 

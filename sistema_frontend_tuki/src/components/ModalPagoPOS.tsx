@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Banknote, CreditCard, Smartphone, Receipt, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import api from '../services/api'; // 🔥 NECESITAMOS API PARA AUTOCOMPLETAR DNI/RUC
+import { notificarExito } from '../services/feedbackService';
 
 interface ModalPagoPOSProps {
     isOpen: boolean;
@@ -7,6 +9,7 @@ interface ModalPagoPOSProps {
     montoTotal: number;
     pasajeroNombreDefecto?: string;
     pasajeroDocumentoDefecto?: string;
+    pasajeroTipoDocDefecto?: string; // 🔥 PARA SABER SI ES DNI, CE O PASAPORTE DESDE EL ORIGEN
     onConfirmarPago: (datosPago: DatosPago) => void;
 }
 
@@ -26,6 +29,7 @@ const ModalPagoPOS: React.FC<ModalPagoPOSProps> = ({
     montoTotal, 
     pasajeroNombreDefecto = '',
     pasajeroDocumentoDefecto = '',
+    pasajeroTipoDocDefecto = 'DNI', 
     onConfirmarPago 
 }) => {
     const [metodoPago, setMetodoPago] = useState<'EFECTIVO' | 'TARJETA' | 'YAPE'>('EFECTIVO');
@@ -33,21 +37,55 @@ const ModalPagoPOS: React.FC<ModalPagoPOSProps> = ({
     const [referencia, setReferencia] = useState('');
     
     const [tipoComprobante, setTipoComprobante] = useState<'BOLETA' | 'FACTURA'>('BOLETA');
+    
+    // Si la boleta es de un extranjero, hay que guardar su tipo original, si no, asumimos DNI
+    const [tipoDocumentoBoleta, setTipoDocumentoBoleta] = useState<string>(pasajeroTipoDocDefecto);
+    
     const [documentoCliente, setDocumentoCliente] = useState(pasajeroDocumentoDefecto);
     const [razonSocialNombre, setRazonSocialNombre] = useState(pasajeroNombreDefecto);
 
     const numMontoRecibido = parseFloat(montoRecibido) || 0;
     const vuelto = numMontoRecibido - montoTotal;
-    const pagoValido = metodoPago === 'EFECTIVO' ? numMontoRecibido >= montoTotal : referencia.trim().length > 3;
+    
+    // 🔥 LÓGICA DE VALIDACIÓN ESTRICTA DE DOCUMENTOS 🔥
+    const esDocumentoValido = () => {
+        if (!documentoCliente) return false;
+        
+        if (tipoComprobante === 'FACTURA') {
+            return documentoCliente.length === 11; // RUC SIEMPRE 11
+        } else {
+            if (tipoDocumentoBoleta === 'DNI') return documentoCliente.length === 8;
+            if (tipoDocumentoBoleta === 'CARNET_EXTRANJERIA') return documentoCliente.length === 9;
+            return documentoCliente.length >= 5; // PASAPORTE U OTROS: Libre, mínimo 5
+        }
+    };
 
+    const pagoValido = (metodoPago === 'EFECTIVO' ? numMontoRecibido >= montoTotal : referencia.trim().length > 3) 
+                        && esDocumentoValido() 
+                        && razonSocialNombre.trim().length > 2;
+
+    // Cuando se abre el modal, reiniciamos valores
     useEffect(() => {
         if (isOpen) {
             setMontoRecibido(montoTotal.toString());
             setReferencia('');
+            setTipoComprobante('BOLETA');
+            setTipoDocumentoBoleta(pasajeroTipoDocDefecto);
             setDocumentoCliente(pasajeroDocumentoDefecto);
             setRazonSocialNombre(pasajeroNombreDefecto);
         }
-    }, [isOpen, montoTotal, pasajeroDocumentoDefecto, pasajeroNombreDefecto]);
+    }, [isOpen, montoTotal, pasajeroDocumentoDefecto, pasajeroNombreDefecto, pasajeroTipoDocDefecto]);
+
+    // Si cambian entre Boleta y Factura limpiamos datos para seguridad
+    useEffect(() => {
+        if (tipoComprobante === 'FACTURA') {
+            setDocumentoCliente('');
+            setRazonSocialNombre('');
+        } else {
+            setDocumentoCliente(pasajeroDocumentoDefecto);
+            setRazonSocialNombre(pasajeroNombreDefecto);
+        }
+    }, [tipoComprobante]);
 
     useEffect(() => {
         setMontoRecibido(montoTotal.toString());
@@ -55,6 +93,57 @@ const ModalPagoPOS: React.FC<ModalPagoPOSProps> = ({
     }, [metodoPago, montoTotal]);
 
     if (!isOpen) return null;
+
+    // 🔥 BUSCADOR AUTOMÁTICO DE CLIENTES EN LA BASE DE DATOS 🔥
+    const buscarClienteExterno = async (doc: string) => {
+        if (!doc || doc.length < 8) return;
+        try {
+            const res = await api.get(`/pasajeros/documento/${doc}`);
+            if (res.data) {
+                // Si es factura unimos razón social, si es boleta armamos el nombre
+                let nombreArmado = "";
+                if (tipoComprobante === 'FACTURA') {
+                     nombreArmado = res.data.nombres || ""; // Usualmente en RUC guardan todo en 'nombres'
+                } else {
+                     nombreArmado = `${res.data.nombres || ''} ${res.data.apellidoPaterno || ''} ${res.data.apellidoMaterno || ''}`.trim();
+                }
+                
+                if (nombreArmado.length > 2) {
+                    setRazonSocialNombre(nombreArmado.toUpperCase());
+                    notificarExito("Datos de facturación encontrados.");
+                }
+            }
+        } catch (e) {
+            // No hacemos nada, que el cajero lo escriba manual
+        }
+    };
+
+    const handleDocumentoChange = (val: string) => {
+        let limpio = val;
+        
+        // Filtros según tipo de comprobante y documento
+        if (tipoComprobante === 'FACTURA') {
+            limpio = val.replace(/[^0-9]/g, ''); // Solo números para RUC
+        } else {
+            if (tipoDocumentoBoleta === 'DNI' || tipoDocumentoBoleta === 'CARNET_EXTRANJERIA') {
+                limpio = val.replace(/[^0-9]/g, ''); // Solo números
+            } else {
+                limpio = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase(); // Alfanumérico para pasaportes
+            }
+        }
+        
+        setDocumentoCliente(limpio);
+
+        // Disparar búsqueda automática cuando alcance la longitud correcta
+        if (tipoComprobante === 'FACTURA' && limpio.length === 11) {
+            buscarClienteExterno(limpio);
+        } else if (tipoComprobante === 'BOLETA') {
+            if ((tipoDocumentoBoleta === 'DNI' && limpio.length === 8) || 
+                (tipoDocumentoBoleta === 'CARNET_EXTRANJERIA' && limpio.length === 9)) {
+                buscarClienteExterno(limpio);
+            }
+        }
+    };
 
     const handleConfirmar = () => {
         if (!pagoValido) return;
@@ -73,7 +162,7 @@ const ModalPagoPOS: React.FC<ModalPagoPOSProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-300">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col md:flex-row animate-in zoom-in-95 duration-300">
                 
                 {/* PANEL IZQUIERDO: Resumen y Método de Pago */}
                 <div className="w-full md:w-1/2 bg-slate-50 p-6 border-r border-slate-200 flex flex-col">
@@ -124,6 +213,7 @@ const ModalPagoPOS: React.FC<ModalPagoPOSProps> = ({
                                             type="number" 
                                             value={montoRecibido}
                                             onChange={(e) => setMontoRecibido(e.target.value)}
+                                            onKeyDown={(e) => { if (e.key === '-' || e.key === 'e' || e.key === '+') e.preventDefault(); }}
                                             className="w-full pl-9 pr-4 py-2 border-2 border-slate-200 rounded-lg outline-none focus:border-emerald-500 font-bold text-lg text-slate-700"
                                             placeholder="0.00"
                                             autoFocus
@@ -205,16 +295,45 @@ const ModalPagoPOS: React.FC<ModalPagoPOSProps> = ({
                     <div className="space-y-4 flex-1">
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">
-                                {tipoComprobante === 'BOLETA' ? 'DNI del Pasajero' : 'RUC de la Empresa'}
+                                {tipoComprobante === 'BOLETA' ? 'N° de documento del cliente' : 'RUC de la Empresa (11 dígitos)'}
                             </label>
-                            <input 
-                                type="text" 
-                                value={documentoCliente}
-                                onChange={(e) => setDocumentoCliente(e.target.value)}
-                                maxLength={tipoComprobante === 'BOLETA' ? 8 : 11}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-[#1ABB9C] text-sm font-medium"
-                                placeholder={tipoComprobante === 'BOLETA' ? '8 dígitos' : '11 dígitos'}
-                            />
+                            
+                            {/* 🔥 CONTENEDOR INPUT HÍBRIDO (Select + Input solo para boleta) 🔥 */}
+                            <div className="flex rounded-lg overflow-hidden border border-slate-200 focus-within:border-[#1ABB9C] focus-within:ring-2 focus-within:ring-[#1ABB9C]/15 transition-all bg-slate-50">
+                                {tipoComprobante === 'BOLETA' && (
+                                    <select 
+                                        value={tipoDocumentoBoleta}
+                                        onChange={(e) => {
+                                            setTipoDocumentoBoleta(e.target.value);
+                                            setDocumentoCliente(''); // Limpiamos al cambiar para evitar incongruencias
+                                            setRazonSocialNombre('');
+                                        }}
+                                        className="bg-slate-100 border-r border-slate-200 px-3 py-3 text-xs outline-none text-slate-700 font-bold cursor-pointer uppercase"
+                                    >
+                                        <option value="DNI">DNI</option>
+                                        <option value="CARNET_EXTRANJERIA">CE</option>
+                                        <option value="PASAPORTE">PAS</option>
+                                    </select>
+                                )}
+                                <input 
+                                    type="text" 
+                                    value={documentoCliente}
+                                    onChange={(e) => handleDocumentoChange(e.target.value)}
+                                    maxLength={tipoComprobante === 'FACTURA' ? 11 : (tipoDocumentoBoleta === 'DNI' ? 8 : tipoDocumentoBoleta === 'CARNET_EXTRANJERIA' ? 9 : 15)}
+                                    className="w-full px-4 py-3 bg-transparent outline-none text-sm font-bold tracking-widest text-slate-700 placeholder:font-normal placeholder:tracking-normal uppercase"
+                                    placeholder={tipoComprobante === 'FACTURA' ? 'EJ: 12345698396' : (tipoDocumentoBoleta === 'DNI' ? '8 dígitos' : tipoDocumentoBoleta === 'CARNET_EXTRANJERIA' ? '9 dígitos' : 'Pasaporte')}
+                                />
+                            </div>
+                            
+                            {documentoCliente.length > 0 && !esDocumentoValido() && (
+                                <p className="text-red-500 text-[10px] mt-1 flex items-center gap-1 font-bold">
+                                    <AlertCircle size={10} /> 
+                                    {tipoComprobante === 'FACTURA' ? 'El RUC debe tener exactamente 11 dígitos' : 
+                                     tipoDocumentoBoleta === 'DNI' ? 'El DNI debe tener exactamente 8 dígitos' : 
+                                     tipoDocumentoBoleta === 'CARNET_EXTRANJERIA' ? 'El CE debe tener exactamente 9 dígitos' : 
+                                     'Complete el pasaporte'}
+                                </p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-500 mb-1">
@@ -223,8 +342,8 @@ const ModalPagoPOS: React.FC<ModalPagoPOSProps> = ({
                             <input 
                                 type="text" 
                                 value={razonSocialNombre}
-                                onChange={(e) => setRazonSocialNombre(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-[#1ABB9C] text-sm font-medium uppercase"
+                                onChange={(e) => setRazonSocialNombre(e.target.value.toUpperCase())}
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-[#1ABB9C] text-sm font-bold uppercase"
                                 placeholder={tipoComprobante === 'BOLETA' ? 'Nombres del pasajero' : 'Nombre de la empresa'}
                             />
                         </div>
@@ -233,9 +352,14 @@ const ModalPagoPOS: React.FC<ModalPagoPOSProps> = ({
                     {/* ZONA DE ALERTA Y BOTÓN DE EMISIÓN */}
                     <div className="mt-6 pt-6 border-t border-slate-100">
                         {!pagoValido && (
-                            <div className="mb-4 p-3 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg flex items-center gap-2 border border-amber-200">
-                                <AlertCircle size={16} className="shrink-0"/> 
-                                {metodoPago === 'EFECTIVO' ? 'El monto recibido debe ser mayor o igual al total.' : 'Ingresa el número de referencia/voucher para continuar.'}
+                            <div className="mb-4 p-3 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg flex items-start gap-2 border border-amber-200">
+                                <AlertCircle size={16} className="shrink-0 mt-0.5"/> 
+                                <div>
+                                    {metodoPago === 'EFECTIVO' && numMontoRecibido < montoTotal && <p>• El monto recibido es menor al total.</p>}
+                                    {metodoPago !== 'EFECTIVO' && referencia.trim().length <= 3 && <p>• Ingresa un número de referencia válido.</p>}
+                                    {!esDocumentoValido() && <p>• Completa correctamente el documento (DNI 8 dígitos / RUC 11 dígitos).</p>}
+                                    {razonSocialNombre.trim().length <= 2 && <p>• Ingresa los nombres o la razón social completa.</p>}
+                                </div>
                             </div>
                         )}
                         <button 

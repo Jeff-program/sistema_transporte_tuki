@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Unlock, DollarSign, CheckCircle, Printer, Banknote } from 'lucide-react';
+import { X, Lock, Unlock, CheckCircle, Printer, Banknote } from 'lucide-react';
 import { abrirCaja, obtenerCajaActiva, cerrarCaja } from '../services/cajaService';
 import { getCurrentUser, getUserFromToken } from '../services/authService'; 
 import { notificarExito, notificarError, notificarCarga, cerrarNotificacion } from '../services/feedbackService';
@@ -53,8 +53,8 @@ const ModalCaja: React.FC<ModalCajaProps> = ({ isOpen, onClose, onSuccess }) => 
     };
 
     const handleAbrir = async () => {
-        if (!montoInput || isNaN(Number(montoInput))) {
-            notificarError("Ingrese un monto inicial válido (puede ser 0).");
+        if (!montoInput || isNaN(Number(montoInput)) || Number(montoInput) < 0) {
+            notificarError("Ingrese un monto inicial válido (debe ser mayor o igual a 0).");
             return;
         }
         const toastId = notificarCarga("Abriendo turno de caja...");
@@ -73,8 +73,8 @@ const ModalCaja: React.FC<ModalCajaProps> = ({ isOpen, onClose, onSuccess }) => 
     };
 
    const handleCerrar = async () => {
-        if (!montoInput || isNaN(Number(montoInput))) {
-            notificarError("Ingrese cuánto efectivo físico tiene en la caja.");
+        if (!montoInput || isNaN(Number(montoInput)) || Number(montoInput) < 0) {
+            notificarError("El monto de efectivo físico no puede ser negativo.");
             return;
         }
         const toastId = notificarCarga("Cerrando caja y calculando totales...");
@@ -90,6 +90,12 @@ const ModalCaja: React.FC<ModalCajaProps> = ({ isOpen, onClose, onSuccess }) => 
         } catch (error: any) {
             cerrarNotificacion(toastId);
             notificarError(error.response?.data?.error || error.response?.data || "No se pudo cerrar la caja.");
+        }
+    };
+
+    const bloquearTeclasInvalidas = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === '-' || e.key === 'e' || e.key === '+') {
+            e.preventDefault();
         }
     };
 
@@ -130,7 +136,12 @@ const ModalCaja: React.FC<ModalCajaProps> = ({ isOpen, onClose, onSuccess }) => 
                                 <div className="relative mt-1">
                                     <Banknote className="absolute left-3 top-3 text-gray-400" size={20}/>
                                     <input 
-                                        type="number" value={montoInput} onChange={(e) => setMontoInput(e.target.value)}
+                                        type="number" 
+                                        min="0"
+                                        step="0.10"
+                                        value={montoInput} 
+                                        onChange={(e) => setMontoInput(e.target.value)}
+                                        onKeyDown={bloquearTeclasInvalidas}
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xl font-black text-[#2A3F54] focus:border-blue-500 focus:bg-white outline-none transition-all"
                                         placeholder="0.00" autoFocus
                                     />
@@ -152,7 +163,12 @@ const ModalCaja: React.FC<ModalCajaProps> = ({ isOpen, onClose, onSuccess }) => 
                                 <div className="relative mt-1">
                                     <Banknote className="absolute left-3 top-3 text-gray-400" size={20}/>
                                     <input 
-                                        type="number" value={montoInput} onChange={(e) => setMontoInput(e.target.value)}
+                                        type="number" 
+                                        min="0"
+                                        step="0.10"
+                                        value={montoInput} 
+                                        onChange={(e) => setMontoInput(e.target.value)}
+                                        onKeyDown={bloquearTeclasInvalidas}
                                         className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-xl font-black text-[#2A3F54] focus:border-orange-500 focus:bg-white outline-none transition-all"
                                         placeholder="0.00" autoFocus
                                     />

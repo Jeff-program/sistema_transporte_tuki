@@ -58,13 +58,13 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
     
     if (estado === 'VENDIDO') {
         colorClass = "bg-red-500";
+        cursorClass = "cursor-not-allowed opacity-70";
     } else if (estado === 'BLOQUEADO') {
         colorClass = "bg-slate-400"; 
         cursorClass = "cursor-not-allowed opacity-70";
-    }
-
-    if (asientoSeleccionado === idAsiento && estado !== 'VENDIDO') {
-        colorClass = "bg-blue-500 ring-4 ring-blue-300 border-transparent";
+    } else if (estado === 'SELECCIONADO') {
+        colorClass = "bg-blue-500 ring-2 ring-blue-300 border-transparent z-10";
+        cursorClass = "cursor-pointer scale-105 shadow-md shadow-blue-500/50";
     }
 
     return (
@@ -95,9 +95,7 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
                 {grupos[0].split('').map(letra => renderAsiento(fila, letra))}
             </div>
             
-            <div className="w-8 shrink-0 flex justify-center items-center opacity-50 select-none">
-
-            </div>
+            <div className="w-8 shrink-0 flex justify-center items-center opacity-50 select-none"></div>
 
             <div className="flex gap-1.5 sm:gap-2 shrink-0 justify-start pl-3 sm:pl-5">
                 {grupos[1] ? grupos[1].split('').map(letra => renderAsiento(fila, letra)) : null}
@@ -140,7 +138,6 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
   return (
         <div className="flex flex-col items-center py-0 bg-transparent w-full">
 
-            {/* BANNER SUPERIOR (Estático, fuera del scroll horizontal) */}
             <div className="w-full max-w-[480px] bg-white shadow-md border border-gray-200 rounded-xl p-3 mb-4 sticky left-0">
                 <h4 className="text-[10px] font-bold text-gray-500 uppercase mb-2 flex items-center gap-2">
                     <Ship size={12}/> {nombreEmbarcacion}
@@ -169,15 +166,9 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
                 </div>
             </div>
 
-            {/* CONTENEDOR CON SCROLL HORIZONTAL */}
-            <div 
-                className="w-full overflow-x-auto lg:overflow-x-hidden pb-8 px-2" 
-                style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}
-            >
-                {/* BARCO DINÁMICO (Crece a lo ancho y largo: w-fit, h-fit) */}
+            <div className="w-full overflow-x-auto lg:overflow-x-hidden pb-8 px-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}>
                 <div className="relative bg-white pt-48 pb-10 rounded-[12rem_12rem_3rem_3rem] border-[6px] border-slate-300 shadow-2xl w-fit min-w-[340px] sm:min-w-[400px] h-fit min-h-[400px] flex flex-col items-center transition-all duration-500 overflow-hidden mx-auto">
 
-                    {/* PROA */}
                     <div className="absolute top-0 w-full h-40 bg-gradient-to-b from-slate-100 to-white flex flex-col items-center justify-center pt-8 border-b border-slate-100 z-0">
                         <span className="text-4xl opacity-20">⚓</span>
                         <span className="text-lg font-black text-[#2A3F54] uppercase mt-2 tracking-widest">{nombreEmbarcacion}</span>
@@ -188,7 +179,6 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
                         {elementosLancha}
                     </div>
 
-                    {/* POPA */}
                     <div className="mt-12 w-full border-t-4 border-slate-200 pt-4 flex flex-col items-center">
                         <div className="w-3/4 h-2 bg-slate-200 rounded-full mb-2"></div>
                         <div className="w-1/2 h-2 bg-slate-200 rounded-full"></div>
