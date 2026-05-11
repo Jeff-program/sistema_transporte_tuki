@@ -21,6 +21,8 @@ export interface PasswordForm {
     confirmarPassword: string;
 }
 
+const baseUrl = import.meta.env.VITE_API_URL.replace('/api', '');
+
 const datosSchema = yup.object().shape({
     nombreCompleto: yup.string().required('El nombre es requerido').min(3, 'El nombre es muy corto'),
     email: yup.string().required('El correo es requerido').email('Formato de correo inválido'),
@@ -221,7 +223,7 @@ const PerfilPage = () => {
                                         <div className="relative w-52 h-52 sm:w-56 sm:h-56 rounded-full overflow-hidden bg-white shadow-2xl shadow-slate-400/40 border-[6px] border-white ring-[3px] ring-[#1ABB9C]/10 transition-transform duration-500 group-hover/avatar:scale-105">
                                             {fotoUrl ? (
                                                 <img 
-                                                    src={fotoUrl?.startsWith('http') ? fotoUrl : `http://localhost:8080${fotoUrl}`} 
+                                                    src={fotoUrl?.startsWith('http') ? fotoUrl : `${baseUrl}${fotoUrl}`} 
                                                     alt="Perfil" 
                                                     className="w-full h-full object-cover"
                                                     onError={() => setFotoUrl(null)} 
