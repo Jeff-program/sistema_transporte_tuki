@@ -19,13 +19,22 @@ import RecuperarPasswordPage from './pages/auth/RecuperarPasswordPage';
 import PerfilAdminPage from './pages/admin/PerfilAdminPage';
 import ControlCajaPage from './pages/admin/ControlCajaPage';
 import RiosPage from './pages/admin/config/RiosPage';
+import SuperAdminPage from './pages/superadmin/SuperAdminPage';
+import MantenimientoPage from './pages/MantenimientoPage';
 
+// Función para redirigir a los usuarios a su panel correspondiente al iniciar sesión
 const RedirectInicial = () => {
   const userStr = localStorage.getItem('user');
   if (!userStr) return <Navigate to="/login" replace />;
   try {
     const user = JSON.parse(userStr);
+    
+    // Si es SUPER ADMIN lo mandamos a su panel
+    if (user.rol === 'SUPER_ADMIN') return <Navigate to="/superadmin/panel" replace />;
+    // Si es ADMIN normal
     if (user.rol === 'ADMIN' || user.rol === 'ADMINISTRADOR') return <Navigate to="/admin/dashboard" replace />;
+    
+    // Si es asesor, agencia, etc.
     return <Navigate to="/asesor/dashboard" replace />;
   } catch (e) {
     return <Navigate to="/login" replace />;
@@ -40,11 +49,17 @@ function App() {
         <Routes>
           <Route path="/" element={<RedirectInicial />} />
           
-          { <Route path="/login" element={<LoginPage />} />}
-          { <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/recuperar-password" element={<RecuperarPasswordPage />} />
+          <Route path="/mantenimiento" element={<MantenimientoPage />} />
 
-          {/* RUTAS ADMIN */}
-          { <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'ADMINISTRADOR']} />}>
+          {/* RUTAS EXCLUSIVAS DEL SUPERADMIN */}
+          <Route element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} />}>
+             <Route path="/superadmin/panel" element={<SuperAdminPage />} />
+          </Route>
+
+          {/* RUTAS ADMIN (Le damos permiso al SUPER_ADMIN para entrar aquí también) */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'ADMINISTRADOR', 'SUPER_ADMIN']} />}>
             <Route path="/admin/dashboard" element={<DashboardAdmin />} />
             <Route path="/admin/usuarios" element={<UsuariosPage />} />
             <Route path="/admin/config/puertos" element={<PuertosPage />} />
@@ -56,16 +71,17 @@ function App() {
             <Route path="/admin/perfil" element={<PerfilAdminPage />} />
             <Route path="/admin/control-caja" element={<ControlCajaPage />} />
             <Route path='/admin/config/rios' element={<RiosPage />} /> 
-          </Route> }
+          </Route>
 
-          {/* RUTAS ASESOR */}
-          { <Route element={<ProtectedRoute allowedRoles={['ASESOR', 'ADMIN', 'ADMINISTRADOR', 'AGENCIA']} />}>
+          {/* RUTAS ASESOR (Le damos permiso a todos los superiores para entrar aquí) */}
+          <Route element={<ProtectedRoute allowedRoles={['ASESOR', 'ADMIN', 'ADMINISTRADOR', 'AGENCIA', 'SUPER_ADMIN']} />}>
             <Route path="/asesor/dashboard" element={<DashboardAsesor />} />
             <Route path='/asesor/ventas' element={<VentaPage />} />
             <Route path="/asesor/pasajeros" element={<PasajerosPage />} />
             <Route path="/asesor/perfil" element={<PerfilPage />} />
-          </Route> }
+          </Route>
 
+          {/* Si escriben una URL que no existe, los manda a la raíz y de ahí a su panel */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

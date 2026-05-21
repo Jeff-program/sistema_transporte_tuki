@@ -30,4 +30,20 @@ api.interceptors.response.use(
     }
 );
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Si el servidor responde con 503 MANTENIMIENTO
+    if (error.response && error.response.status === 503 && error.response.data.error === "MANTENIMIENTO") {
+      // Limpiamos la sesión (opcional, o solo los redirigimos)
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      // Redirigir a la pantalla de mantenimiento
+      window.location.href = '/mantenimiento';
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

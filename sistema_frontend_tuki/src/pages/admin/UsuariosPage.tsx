@@ -15,8 +15,12 @@ import { getUsuarios, saveUsuario, toggleEstadoUsuario, saveAgenciaConUsuario } 
 import { getPuertos } from '../../services/configService'; 
 import { confirmarAccion, notificarExito, notificarError, notificarCarga, cerrarNotificacion } from '../../services/feedbackService';
 import api from '../../services/api'; 
+import { getCurrentUser } from '../../services/authService'; // <-- IMPORTANTE: Importamos el usuario actual
 
 const UsuariosPage = () => {
+    // 1. Obtenemos quién es el usuario que tiene la sesión iniciada
+    const usuarioLogueado = getCurrentUser() as any;
+
     const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<any>({
         defaultValues: { rol: 'ASESOR' } 
     });
@@ -191,12 +195,28 @@ const UsuariosPage = () => {
         }
     };
 
-    const usuariosFiltrados = usuarios.filter(u => 
-        u.nombreCompleto.toLowerCase().includes(busqueda.toLowerCase()) || 
-        u.email.toLowerCase().includes(busqueda.toLowerCase()) ||
-        u.rol.toLowerCase().includes(busqueda.toLowerCase()) ||
-        (u.agencia?.puerto?.ciudad || '').toLowerCase().includes(busqueda.toLowerCase())
-    );
+    // 🔥 APLICANDO EL FILTRO DE SEGURIDAD 🔥
+    const usuariosFiltrados = usuarios.filter(u => {
+        // REGLA 1: Ocultar mi propia cuenta (nadie puede editarse o eliminarse a sí mismo por aquí)
+        if (usuarioLogueado && u.idUsuario === usuarioLogueado.idUsuario) {
+            return false;
+        }
+
+        // REGLA 2: Ocultar al SÚPER ADMIN si la sesión actual es de un ADMIN normal
+        const rolActual = usuarioLogueado?.rol?.toUpperCase();
+        if ((rolActual === 'ADMIN' || rolActual === 'ADMINISTRADOR') && u.rol === 'SUPER_ADMIN') {
+            return false;
+        }
+
+        // REGLA 3: Filtrar por los términos de búsqueda
+        const textoBusqueda = busqueda.toLowerCase();
+        return (
+            u.nombreCompleto.toLowerCase().includes(textoBusqueda) || 
+            u.email.toLowerCase().includes(textoBusqueda) ||
+            u.rol.toLowerCase().includes(textoBusqueda) ||
+            (u.agencia?.puerto?.ciudad || '').toLowerCase().includes(textoBusqueda)
+        );
+    });
 
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -293,9 +313,9 @@ const UsuariosPage = () => {
                                             <td className="px-6 py-4 text-center">
                                                 <div className="flex flex-col items-center gap-1.5">
                                                     <span className={`px-3 py-1 rounded text-[10px] font-bold tracking-wider flex items-center gap-1 w-fit
-                                                        ${u.rol === 'ADMIN' || u.rol === 'ADMINISTRADOR' ? 'bg-purple-100 text-purple-700 border border-purple-200' 
+                                                        ${u.rol === 'ADMIN' || u.rol === 'ADMINISTRADOR' || u.rol === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-700 border border-purple-200' 
                                                         : u.rol === 'AGENCIA' ? 'bg-orange-100 text-orange-700 border border-orange-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
-                                                        {u.rol === 'ADMIN' || u.rol === 'ADMINISTRADOR' ? <Shield size={10}/> 
+                                                        {u.rol === 'ADMIN' || u.rol === 'ADMINISTRADOR' || u.rol === 'SUPER_ADMIN' ? <Shield size={10}/> 
                                                             : u.rol === 'AGENCIA' ? <Building2 size={10}/> : <UserPlus size={10}/>}
                                                         {u.rol}
                                                     </span>
@@ -397,6 +417,10 @@ const UsuariosPage = () => {
                                                 <option value="ASESOR">Asesor de Ventas</option>
                                                 <option value="ADMIN">Administrador</option>
                                                 <option value="AGENCIA">Agencia de Viajes</option>
+                                                {/* Le damos al Súper Admin la opción de crear otros Súper Admins si lo necesita */}
+                                                {usuarioLogueado?.rol === 'SUPER_ADMIN' && (
+                                                    <option value="SUPER_ADMIN">Súper Administrador</option>
+                                                )}
                                             </select>
                                         </div>
 
