@@ -1,11 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import MainLayout from '../../layouts/MainLayout';
 import { ShieldAlert, Database, Download, Power, AlertTriangle, CheckCircle } from 'lucide-react';
 import api from '../../services/api';
 import { notificarExito, notificarError, notificarCarga, cerrarNotificacion, confirmarAccion } from '../../services/feedbackService';
 
 const SuperAdminPage = () => {
-    const [enMantenimiento, setEnMantenimiento] = useState(false); // Podrías hacer un GET inicial para saber el estado real
+    const [enMantenimiento, setEnMantenimiento] = useState(false); 
+
+    useEffect(() => {
+        const fetchEstado = async () => {
+            try {
+                const res = await api.get('/superadmin/mantenimiento/estado');
+                setEnMantenimiento(res.data.mantenimiento);
+            } catch (error) {
+                console.error("Error al obtener estado del sistema", error);
+            }
+        };
+        fetchEstado();
+    }, []);
 
     const handleToggleMantenimiento = async () => {
         const accion = enMantenimiento ? 'desactivar' : 'activar';
@@ -32,33 +44,6 @@ const SuperAdminPage = () => {
         }
     };
 
-    const handleDescargarBackup = async () => {
-        const toastId = notificarCarga("Generando respaldo de la base de datos (Esto puede tardar)...");
-        try {
-            // Se usa responseType 'blob' para descargar archivos
-            const response = await api.get('/superadmin/backup', { responseType: 'blob' });
-            
-            // Crear un enlace temporal para descargar el archivo
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            
-            // Nombre del archivo con fecha
-            const fecha = new Date().toISOString().split('T')[0];
-            link.setAttribute('download', `backup_transporte_tuki_${fecha}.dump`);
-            
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode?.removeChild(link);
-            
-            cerrarNotificacion(toastId);
-            notificarExito("Backup descargado con éxito");
-        } catch (error) {
-            cerrarNotificacion(toastId);
-            notificarError("Error al generar el archivo de respaldo.");
-        }
-    };
-
     return (
         <MainLayout>
             <div className="max-w-5xl mx-auto pb-8">
@@ -75,7 +60,7 @@ const SuperAdminPage = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                     {/* TARJETA MANTENIMIENTO */}
                     <div className={`rounded-3xl border-2 transition-colors duration-500 overflow-hidden ${enMantenimiento ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white shadow-xl'}`}>
                         <div className="p-8">
@@ -99,29 +84,6 @@ const SuperAdminPage = () => {
                             >
                                 {enMantenimiento ? <CheckCircle size={18}/> : <AlertTriangle size={18}/>}
                                 {enMantenimiento ? 'Desactivar Mantenimiento' : 'Apagar Sistema'}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* TARJETA BACKUP */}
-                    <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden group">
-                        <div className="p-8">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="p-3 bg-blue-50 text-blue-600 rounded-full group-hover:scale-110 transition-transform">
-                                    <Database size={28} />
-                                </div>
-                            </div>
-                            
-                            <h2 className="text-xl font-bold text-gray-800 mb-2">Respaldo de Base de Datos</h2>
-                            <p className="text-sm text-gray-500 mb-8 h-10">
-                                Genera y descarga una copia de seguridad completa (.dump) con todos los registros, pasajes y usuarios actuales.
-                            </p>
-
-                            <button 
-                                onClick={handleDescargarBackup}
-                                className="w-full py-4 rounded-xl font-black uppercase tracking-widest text-sm bg-blue-600 text-white shadow-lg hover:bg-blue-700 hover:shadow-blue-600/30 transition-transform active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                <Download size={18}/> Descargar Backup Ahora
                             </button>
                         </div>
                     </div>

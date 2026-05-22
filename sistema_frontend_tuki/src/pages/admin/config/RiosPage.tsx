@@ -6,7 +6,7 @@ import { getRios, saveRio, toggleEstadoRio, deleteRio } from '../../../services/
 import { notificarExito, notificarError, notificarCarga, cerrarNotificacion, confirmarAccion } from '../../../services/feedbackService';
 
 const RiosPage = () => {
-    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({
+    const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } = useForm({
         defaultValues: { idRio: null, nombreRio: '', estado: 'ACTIVO' }
     });
 
@@ -68,9 +68,10 @@ const RiosPage = () => {
             
             handleCerrarModal();
             cargarRios();
-        } catch (error) {
+        } catch (error: any) {
             cerrarNotificacion(toastId);
-            notificarError('Error al guardar el río.');
+            const msj = error.response?.data?.mensaje || error.response?.data || "Error al guardar el río.";
+            notificarError(msj);
         }
     };
 

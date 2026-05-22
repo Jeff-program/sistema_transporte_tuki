@@ -37,11 +37,28 @@ public class RioService {
         return rioRepository.findByEstado("ACTIVO");
     }
 
+    private void validarNombreUnico(String nombreRio, Long idActual) {
+        if (nombreRio == null || nombreRio.trim().isEmpty()) {
+            throw new RuntimeException("El nombre del río no puede estar vacío");
+        }
+
+        boolean existe = rioRepository.findAll().stream()
+                .anyMatch(r -> r.getNombreRio().equalsIgnoreCase(nombreRio.trim()) 
+                        && !"ELIMINADO".equals(r.getEstado()) 
+                        && (idActual == null || !r.getIdRio().equals(idActual))); 
+                        
+        if (existe) {
+            throw new RuntimeException("Ya existe un río registrado con el nombre: " + nombreRio.trim());
+        }
+    }
+
     public Rio guardar(Rio rio) {
+        validarNombreUnico(rio.getNombreRio(), null);
         return rioRepository.save(rio);
     }
 
     public Rio actualizar(Long id, Rio rio) {
+        validarNombreUnico(rio.getNombreRio(), id);
         rio.setIdRio(id);
         return rioRepository.save(rio);
     }

@@ -3,9 +3,8 @@ import { useForm } from 'react-hook-form';
 import MainLayout from '../../layouts/MainLayout';
 import { 
     Users, UserPlus, Search, Edit, Lock, Shield, 
-    ToggleLeft, ToggleRight, Save, XCircle, Mail, ChevronLeft, ChevronRight, List, AlertCircle, Building2, MapPin, Phone,
+    ToggleLeft, ToggleRight, Save, Mail, ChevronLeft, ChevronRight, List, AlertCircle, Building2, MapPin, Phone,
     Loader,
-    Anchor,
     IdCardIcon,
     Eye, EyeOff,
     Trash2,
@@ -15,10 +14,9 @@ import { getUsuarios, saveUsuario, toggleEstadoUsuario, saveAgenciaConUsuario } 
 import { getPuertos } from '../../services/configService'; 
 import { confirmarAccion, notificarExito, notificarError, notificarCarga, cerrarNotificacion } from '../../services/feedbackService';
 import api from '../../services/api'; 
-import { getCurrentUser } from '../../services/authService'; // <-- IMPORTANTE: Importamos el usuario actual
+import { getCurrentUser } from '../../services/authService';
 
 const UsuariosPage = () => {
-    // 1. Obtenemos quién es el usuario que tiene la sesión iniciada
     const usuarioLogueado = getCurrentUser() as any;
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<any>({
@@ -195,20 +193,16 @@ const UsuariosPage = () => {
         }
     };
 
-    // 🔥 APLICANDO EL FILTRO DE SEGURIDAD 🔥
     const usuariosFiltrados = usuarios.filter(u => {
-        // REGLA 1: Ocultar mi propia cuenta (nadie puede editarse o eliminarse a sí mismo por aquí)
         if (usuarioLogueado && u.idUsuario === usuarioLogueado.idUsuario) {
             return false;
         }
 
-        // REGLA 2: Ocultar al SÚPER ADMIN si la sesión actual es de un ADMIN normal
         const rolActual = usuarioLogueado?.rol?.toUpperCase();
         if ((rolActual === 'ADMIN' || rolActual === 'ADMINISTRADOR') && u.rol === 'SUPER_ADMIN') {
             return false;
         }
 
-        // REGLA 3: Filtrar por los términos de búsqueda
         const textoBusqueda = busqueda.toLowerCase();
         return (
             u.nombreCompleto.toLowerCase().includes(textoBusqueda) || 
@@ -389,7 +383,7 @@ const UsuariosPage = () => {
                     </div>
                 </div>
 
-                {/* 🔥 MODAL DE REGISTRO / EDITAR DE USUARIOS 🔥 */}
+                {/* MODAL DE REGISTRO / EDITAR DE USUARIOS */}
                 {isModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh]">
@@ -417,7 +411,6 @@ const UsuariosPage = () => {
                                                 <option value="ASESOR">Asesor de Ventas</option>
                                                 <option value="ADMIN">Administrador</option>
                                                 <option value="AGENCIA">Agencia de Viajes</option>
-                                                {/* Le damos al Súper Admin la opción de crear otros Súper Admins si lo necesita */}
                                                 {usuarioLogueado?.rol === 'SUPER_ADMIN' && (
                                                     <option value="SUPER_ADMIN">Súper Administrador</option>
                                                 )}

@@ -20,7 +20,7 @@ const MENU_CONFIG = {
         { label: 'Gestión del Personal', path: '/admin/usuarios', icon: Briefcase },
     ]},
     { section: 'Supervisión Operativa', items: [
-        { label: 'Rios', path: '/admin/config/rios', icon: RouteIcon },
+        { label: 'Ríos', path: '/admin/config/rios', icon: RouteIcon },
         { label: 'Puertos', path: '/admin/config/puertos', icon: Anchor },
         { label: 'Embarcaciones', path: '/admin/config/embarcaciones', icon: Ship },
         { label: 'Rutas y Tarifas', path: '/admin/config/rutas', icon: Map },
@@ -49,12 +49,17 @@ const Sidebar = ({ isMobile, closeMobileMenu }: SidebarProps) => {
   const user = getCurrentUser();
   const userRole = (user?.rol || 'ASESOR').toUpperCase(); 
   
-  // Validaciones de roles corregidas
   const isSuperAdmin = userRole === 'SUPER_ADMIN';
-  const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR' || isSuperAdmin;
+  const isAdmin = userRole === 'ADMIN' || userRole === 'ADMINISTRADOR';
   
-  // Si es ADMIN o SUPER_ADMIN, ve el menú gerencial. Si no, el de Asesor.
-  const menuActual = isAdmin ? MENU_CONFIG.ADMIN : MENU_CONFIG.ASESOR;
+  let menuActual: any[] = [];
+  if (isSuperAdmin) {
+      menuActual = [...MENU_CONFIG.ADMIN, ...MENU_CONFIG.ASESOR];
+  } else if (isAdmin) {
+      menuActual = MENU_CONFIG.ADMIN;
+  } else {
+      menuActual = MENU_CONFIG.ASESOR;
+  }
 
   const handleLogout = () => {
     if (window.confirm('¿Desea cerrar sesión?')) {
@@ -116,9 +121,8 @@ const Sidebar = ({ isMobile, closeMobileMenu }: SidebarProps) => {
         {/* MENÚ DINÁMICO */}
         <nav className="flex-1 overflow-y-auto py-2 space-y-1 custom-scrollbar">
           
-          {menuActual.map((grupo, idx) => (
+          {menuActual.map((grupo: any, idx: number) => (
             <div key={idx}>
-              {/* Título de Sección */}
               <div className="px-4 mt-4 mb-2">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
                   {grupo.section}
@@ -126,7 +130,7 @@ const Sidebar = ({ isMobile, closeMobileMenu }: SidebarProps) => {
               </div>
               
               {/* Items de la Sección */}
-              {grupo.items.map((item, itemIdx) => (
+              {grupo.items.map((item: any, itemIdx: number) => (
                 <Link 
                   key={itemIdx}
                   to={item.path} 
