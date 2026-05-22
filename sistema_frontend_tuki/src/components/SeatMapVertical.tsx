@@ -53,12 +53,12 @@ const SeatMapVertical: React.FC<SeatMapProps> = ({
     const idAsiento = `${fila}${letra}`;
     const estado = (mapaEstados && mapaEstados[idAsiento]) ? mapaEstados[idAsiento] : 'LIBRE';
     
-    let colorClass = "bg-[#1ABB9C]"; 
+    let colorClass = "bg-[#1ABB9C] "; 
     let cursorClass = "cursor-pointer hover:brightness-110 hover:scale-105 active:scale-95 shadow-sm"; 
     
     if (estado === 'VENDIDO') {
         colorClass = "bg-red-500";
-        cursorClass = "cursor-not-allowed opacity-70";
+        cursorClass = "cursor-not-allowed";
     } else if (estado === 'BLOQUEADO') {
         colorClass = "bg-slate-400"; 
         cursorClass = "cursor-not-allowed opacity-70";

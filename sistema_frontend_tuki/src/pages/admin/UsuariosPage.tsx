@@ -410,7 +410,7 @@ const UsuariosPage = () => {
                                             <select {...register('rol')} className="w-full bg-gray-50 border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-[#1ABB9C] focus:bg-white transition-colors cursor-pointer" disabled={editando}>
                                                 <option value="ASESOR">Asesor de Ventas</option>
                                                 <option value="ADMIN">Administrador</option>
-                                                <option value="AGENCIA">Agencia de Viajes</option>
+                                                <option value="AGENCIA">Agencia</option>
                                                 {usuarioLogueado?.rol === 'SUPER_ADMIN' && (
                                                     <option value="SUPER_ADMIN">Súper Administrador</option>
                                                 )}

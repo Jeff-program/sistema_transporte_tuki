@@ -60,7 +60,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:5173", 
             "http://localhost:3000", 
-            "https://resilient-courage-production-0f33.up.railway.app" // <-- ¡Pon el nuevo aquí!
+            "https://resilient-courage-production-0f33.up.railway.app"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Accept"));

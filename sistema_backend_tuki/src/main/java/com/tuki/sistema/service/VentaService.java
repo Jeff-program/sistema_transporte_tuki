@@ -25,6 +25,7 @@ public class VentaService {
     @Autowired private PuertoRepository puertoRepository;
     @Autowired private AsientoRepository asientoRepository;
     @Autowired private CajaTurnoRepository cajaTurnoRepository;
+    @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PagoRepository pagoRepository;
     @Autowired private FacturacionService facturacionService; 
     @Autowired private ViajeEscalaRepository viajeEscalaRepository;
@@ -76,17 +77,20 @@ public class VentaService {
     }
 
     @Transactional
-    public Map<String, Object> registrarVentaGrupal(VentaDTO dto) {
+    public Map<String, Object> registrarVentaGrupal(VentaDTO dto, Long idUsuarioVendedorReal) {
         Viaje viaje = viajeRepository.findByIdWithLock(dto.getIdViaje())
                 .orElseThrow(() -> new RuntimeException("Viaje no encontrado"));
 
         CajaTurno cajaTurno = cajaTurnoRepository.findById(dto.getIdTurno())
                 .orElseThrow(() -> new RuntimeException("Turno de caja no válido."));
 
+        Usuario vendedorReal = usuarioRepository.findById(idUsuarioVendedorReal)
+                .orElseThrow(() -> new RuntimeException("Vendedor no encontrado"));
+
         Venta venta = new Venta();
         venta.setViaje(viaje);
         venta.setCajaTurno(cajaTurno);
-        venta.setUsuarioVendedor(cajaTurno.getUsuario());
+        venta.setUsuarioVendedor(vendedorReal); 
         venta.setFechaVenta(LocalDateTime.now());
         venta.setEstado("COMPLETADA");
 
@@ -174,7 +178,7 @@ public class VentaService {
         response.put("serie", comprobante.getSerie());
         response.put("correlativo", comprobante.getNumeroCorrelativo());
         response.put("total", venta.getTotal());
-        response.put("nombreVendedor", cajaTurno.getUsuario().getNombreCompleto());
+        response.put("nombreVendedor", vendedorReal.getNombreCompleto());
         
         return response;
     }
@@ -355,7 +359,7 @@ public class VentaService {
     }
 
     @Transactional
-    public void anularVenta(Long idViaje, String identificador) {
+    public void anularVenta(Long idViaje, String identificador, Usuario usuarioQueAnula) {
         try {
             Long idDetalle = Long.parseLong(identificador);
             
@@ -368,7 +372,9 @@ public class VentaService {
             Cancelacion cancelacion = new Cancelacion();
             cancelacion.setVenta(d.getVenta());
             cancelacion.setViaje(d.getVenta().getViaje());
-            cancelacion.setUsuarioAutoriza(d.getVenta().getUsuarioVendedor()); 
+            
+            cancelacion.setUsuarioAutoriza(usuarioQueAnula); 
+            
             cancelacion.setMotivo("Anulación a solicitud del cliente. Asiento: " + d.getAsiento().getNumero());
             cancelacion.setMontoDevuelto(d.getPrecioUnitario()); 
             cancelacion.setFechaCancelacion(LocalDateTime.now());
