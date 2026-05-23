@@ -11,7 +11,7 @@ Plataforma Full-Stack (Monorepo) diseñada para la gestión logística y comerci
 ## ✨ Características Principales
 
 * **🔒 Autenticación Segura:** Sistema de login basado en JWT (JSON Web Tokens) y Spring Security, con control de acceso por roles (Súper Administrador, Asesor).
-* **🗺️ Croquis de Asientos Interactivo:** Interfaz visual dinámica (`SeatMapVertical`) para la selección y bloqueo de asientos en tiempo real basada en la capacidad de la lancha.
+* **🗺️ Croquis de Asientos Interactivo:** Interfaz visual dinámica para la selección y bloqueo de asientos en tiempo real basada en la capacidad de la embarcación.
 * **💰 Control de Caja (Turnos):** Flujo financiero estricto. Los asesores deben abrir caja con un saldo inicial, registrar ingresos/egresos y realizar el arqueo de cierre. Las ventas se asocian automáticamente a la caja activa.
 * **🚢 Gestión Logística:** Módulos CRUD completos para la administración de Puertos, Ríos, Agencias, Lanchas y Rutas comerciales.
 * **📄 Reportes y Manifiestos:** Generación automática de manifiestos de embarque exigidos por las autoridades portuarias y emisión de boletos/tickets en formato para impresoras térmicas (POS).
