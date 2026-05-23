@@ -1,7 +1,7 @@
 # ⛴️ Transporte Tuki - Sistema de Gestión Fluvial
 
 ![Java](https://img.shields.io/badge/Java-21-orange?style=for-the-badge&logo=java)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.x-brightgreen?style=for-the-badge&logo=spring-boot)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.14-brightgreen?style=for-the-badge&logo=spring-boot)
 ![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue?style=for-the-badge&logo=postgresql)
 ![Railway](https://img.shields.io/badge/Deployed_on-Railway-black?style=for-the-badge&logo=railway)
