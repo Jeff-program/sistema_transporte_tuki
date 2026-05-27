@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface PagoRepository extends JpaRepository<Pago, Long> {
+    List<Pago> findByVenta_CajaTurno_IdTurno(Long idTurno);
     @Query("SELECT p FROM Pago p WHERE p.venta.usuarioVendedor.idUsuario = :idUsuario AND p.fechaPago >= :fechaInicio AND p.fechaPago <= :fechaFin AND p.estado = 'APROBADO'")
     List<Pago> findPagosParaCaja(
         @Param("idUsuario") Long idUsuario, 

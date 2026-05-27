@@ -1,9 +1,12 @@
 package com.tuki.sistema.controller;
 
 import com.tuki.sistema.entity.CajaTurno;
+import com.tuki.sistema.entity.Usuario;
+import com.tuki.sistema.repository.UsuarioRepository;
 import com.tuki.sistema.service.CajaService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -17,14 +20,26 @@ public class CajaController {
     @Autowired
     private CajaService cajaService;
 
+    @Autowired
+    private UsuarioRepository usuarioRepository;
+
+    private Long idUsuarioAutenticado() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Usuario autenticado no encontrado."));
+        return usuario.getIdUsuario();
+    }
+
     @GetMapping("/activa/{idUsuario}")
     public ResponseEntity<?> obtenerCajaActiva(@PathVariable Long idUsuario) {
         try {
-            CajaTurno caja = cajaService.obtenerCajaActiva(idUsuario);
+            CajaTurno caja = cajaService.obtenerCajaActiva(idUsuarioAutenticado());
             if (caja != null) {
-                return ResponseEntity.ok(Map.of("activa", true, "caja", caja));
+                // 🔥 CAMBIO CLAVE: Devolvemos la caja directamente sin envolverla en "Map.of"
+                return ResponseEntity.ok(caja);
             }
-            return ResponseEntity.ok(Map.of("activa", false));
+            // Si es null, enviamos un estado cerrado para que React lo entienda
+            return ResponseEntity.ok(Map.of("estado", "INACTIVO"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
@@ -41,7 +56,10 @@ public class CajaController {
                 }
             }
             
-            return ResponseEntity.ok(cajaService.abrirCaja(idUsuario, montoInicial));
+            // Extraer la observación si viene desde el frontend
+            String obsApertura = payload.containsKey("observacionesApertura") && payload.get("observacionesApertura") != null ? payload.get("observacionesApertura").toString() : null;
+
+            return ResponseEntity.ok(cajaService.abrirCaja(idUsuarioAutenticado(), montoInicial, obsApertura));
         } catch (NumberFormatException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "El monto ingresado no es válido."));
         } catch (Exception e) {
@@ -51,17 +69,38 @@ public class CajaController {
 
     @PostMapping("/cerrar")
     public ResponseEntity<?> cerrarCaja(
-            @RequestParam Long idUsuario, 
-            @RequestParam(required = false) String montoDeclaradoEfectivo) {
+            @RequestParam(required = false) Long idUsuario,
+            @RequestParam(required = false) String montoDeclaradoEfectivo,
+            @RequestParam(required = false) String observacionesCierre) {
         try {
             BigDecimal montoEfectivo = BigDecimal.ZERO;
             if (montoDeclaradoEfectivo != null && !montoDeclaradoEfectivo.trim().isEmpty()) {
                 montoEfectivo = new BigDecimal(montoDeclaradoEfectivo.trim());
             }
-
-            return ResponseEntity.ok(cajaService.cerrarCaja(idUsuario, montoEfectivo));
+            // Retorna todo el arqueo multimetodo al Frontend
+            return ResponseEntity.ok(cajaService.cerrarCaja(idUsuarioAutenticado(), montoEfectivo, observacionesCierre));
         } catch (NumberFormatException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "El monto ingresado no es válido."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/resumen-movimientos")
+    public ResponseEntity<?> obtenerResumenMovimientos(@RequestParam Long idUsuario) {
+        try {
+            return ResponseEntity.ok(cajaService.obtenerResumenMovimientos(idUsuarioAutenticado()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/egreso")
+    public ResponseEntity<?> registrarEgreso(@RequestParam Long idUsuario, @RequestBody Map<String, Object> payload) {
+        try {
+            String concepto = payload.get("concepto").toString();
+            BigDecimal monto = new BigDecimal(payload.get("monto").toString());
+            return ResponseEntity.ok(cajaService.registrarEgreso(idUsuarioAutenticado(), concepto, monto));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface VentaRepository extends JpaRepository<Venta, Long> {
     List<Venta> findByViaje_IdViaje(Long idViaje);
+
+    List<Venta> findByCajaTurno_IdTurno(Long idTurno);
 }

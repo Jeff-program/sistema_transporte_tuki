@@ -27,11 +27,11 @@ public class VentaService {
     @Autowired private CajaTurnoRepository cajaTurnoRepository;
     @Autowired private UsuarioRepository usuarioRepository;
     @Autowired private PagoRepository pagoRepository;
-    @Autowired private FacturacionService facturacionService; 
+    @Autowired private FacturacionService facturacionService;
     @Autowired private ViajeEscalaRepository viajeEscalaRepository;
     @Autowired private RutaEscalaRepository rutaEscalaRepository;
     @Autowired private ComprobanteRepository comprobanteRepository;
-    @Autowired private CancelacionRepository cancelacionRepository; 
+    @Autowired private CancelacionRepository cancelacionRepository;
 
     private int getOrdenEscala(Viaje viaje, Long idPuerto) {
         if (viaje != null && viaje.getRuta() != null) {
@@ -48,13 +48,17 @@ public class VentaService {
                 if (e.getPuerto().getIdPuerto().equals(idPuerto)) return e.getOrden();
             }
         }
-        return -1; 
+        return -1;
+    }
+
+    private boolean tramosSeCruzan(int origenA, int destinoA, int origenB, int destinoB) {
+        return origenA < destinoB && destinoA > origenB;
     }
 
     @Transactional(readOnly = true)
     public Map<String, String> obtenerEstadoAsientos(Long idViaje, Long idPuertoOrigen, Long idPuertoDestino) {
         Map<String, String> mapaOcupados = new HashMap<>();
-        
+
         Viaje viaje = viajeRepository.findById(idViaje).orElse(null);
         if (viaje == null) return mapaOcupados;
 
@@ -78,11 +82,19 @@ public class VentaService {
 
     @Transactional
     public Map<String, Object> registrarVentaGrupal(VentaDTO dto, Long idUsuarioVendedorReal) {
+        if (dto.getPasajes() == null || dto.getPasajes().isEmpty()) {
+            throw new RuntimeException("La venta debe incluir al menos un pasaje.");
+        }
+
         Viaje viaje = viajeRepository.findByIdWithLock(dto.getIdViaje())
                 .orElseThrow(() -> new RuntimeException("Viaje no encontrado"));
 
-        CajaTurno cajaTurno = cajaTurnoRepository.findById(dto.getIdTurno())
-                .orElseThrow(() -> new RuntimeException("Turno de caja no válido."));
+        if (!"PROGRAMADO".equalsIgnoreCase(viaje.getEstado())) {
+            throw new RuntimeException("Solo se pueden vender pasajes de viajes programados.");
+        }
+
+        CajaTurno cajaTurno = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuarioVendedorReal, "ABIERTO")
+                .orElseThrow(() -> new RuntimeException("OPERACIÃ“N RECHAZADA: No tienes un turno de caja abierto. Debes ABRIR TU CAJA primero para poder realizar ventas."));
 
         Usuario vendedorReal = usuarioRepository.findById(idUsuarioVendedorReal)
                 .orElseThrow(() -> new RuntimeException("Vendedor no encontrado"));
@@ -90,7 +102,7 @@ public class VentaService {
         Venta venta = new Venta();
         venta.setViaje(viaje);
         venta.setCajaTurno(cajaTurno);
-        venta.setUsuarioVendedor(vendedorReal); 
+        venta.setUsuarioVendedor(vendedorReal);
         venta.setFechaVenta(LocalDateTime.now());
         venta.setEstado("COMPLETADA");
 
@@ -98,19 +110,34 @@ public class VentaService {
         BigDecimal totalCalculado = BigDecimal.ZERO;
 
         for (PasajeDTO pDto : dto.getPasajes()) {
-            
+            if (pDto.getNumeroAsientoTexto() == null || pDto.getNumeroAsientoTexto().trim().isEmpty()) {
+                throw new RuntimeException("Todos los pasajes deben tener asiento.");
+            }
+            if (pDto.getPrecio() == null || pDto.getPrecio().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new RuntimeException("El precio de cada pasaje debe ser mayor a cero.");
+            }
+
+            String numeroAsiento = pDto.getNumeroAsientoTexto().trim();
+            Integer capacidad = viaje.getEmbarcacion().getCapacidad();
+            if (capacidad != null && numeroAsiento.matches("\\d+") && Integer.parseInt(numeroAsiento) > capacidad) {
+                throw new RuntimeException("El asiento " + numeroAsiento + " supera la capacidad de la embarcacion.");
+            }
+
             Asiento asiento = asientoRepository.findByEmbarcacion_IdEmbarcacionAndNumero(
-                    viaje.getEmbarcacion().getIdEmbarcacion(), pDto.getNumeroAsientoTexto())
+                    viaje.getEmbarcacion().getIdEmbarcacion(), numeroAsiento)
                     .orElseGet(() -> {
                         Asiento nuevoAsiento = new Asiento();
                         nuevoAsiento.setEmbarcacion(viaje.getEmbarcacion());
-                        nuevoAsiento.setNumero(pDto.getNumeroAsientoTexto());
+                        nuevoAsiento.setNumero(numeroAsiento);
                         nuevoAsiento.setEstadoActual("DISPONIBLE");
                         return asientoRepository.save(nuevoAsiento);
                     });
 
             int ordenOrigenDeseado = getOrdenEscala(viaje, pDto.getIdPuertoOrigen());
             int ordenDestinoDeseado = getOrdenEscala(viaje, pDto.getIdPuertoDestino());
+            if (ordenOrigenDeseado < 0 || ordenDestinoDeseado < 0 || ordenOrigenDeseado >= ordenDestinoDeseado) {
+                throw new RuntimeException("El tramo seleccionado para el asiento " + asiento.getNumero() + " no es valido.");
+            }
 
             List<VentaDetalle> ventasPrevias = detalleRepository.findByVenta_Viaje_IdViajeAndAsiento_IdAsientoAndEstadoPasaje(
                     viaje.getIdViaje(), asiento.getIdAsiento(), "VENDIDO");
@@ -121,8 +148,18 @@ public class VentaService {
                 int ordenOrigenVenta = getOrdenEscala(viaje, vda.getPuertoOrigen().getIdPuerto());
                 int ordenDestinoVenta = getOrdenEscala(viaje, vda.getPuertoDestino().getIdPuerto());
 
-                if (ordenOrigenVenta < ordenDestinoDeseado && ordenDestinoVenta > ordenOrigenDeseado) {
-                    throw new RuntimeException("El asiento " + asiento.getNumero() + " ya está ocupado para el tramo seleccionado.");
+                if (tramosSeCruzan(ordenOrigenVenta, ordenDestinoVenta, ordenOrigenDeseado, ordenDestinoDeseado)) {
+                    throw new RuntimeException("El asiento " + asiento.getNumero() + " ya estÃ¡ ocupado para el tramo seleccionado.");
+                }
+            }
+
+            for (VentaDetalle detalleActual : listaDetalles) {
+                if (detalleActual.getAsiento().getIdAsiento().equals(asiento.getIdAsiento())) {
+                    int ordenOrigenActual = getOrdenEscala(viaje, detalleActual.getPuertoOrigen().getIdPuerto());
+                    int ordenDestinoActual = getOrdenEscala(viaje, detalleActual.getPuertoDestino().getIdPuerto());
+                    if (tramosSeCruzan(ordenOrigenActual, ordenDestinoActual, ordenOrigenDeseado, ordenDestinoDeseado)) {
+                        throw new RuntimeException("El asiento " + asiento.getNumero() + " esta duplicado en la misma venta para tramos que se cruzan.");
+                    }
                 }
             }
 
@@ -155,18 +192,20 @@ public class VentaService {
 
         BigDecimal subtotal = totalCalculado.divide(new BigDecimal("1.18"), 2, java.math.RoundingMode.HALF_UP);
         BigDecimal igv = totalCalculado.subtract(subtotal);
-        
+
         venta.setSubtotal(subtotal);
         venta.setIgv(igv);
         venta.setTotal(totalCalculado);
         venta.setDetalles(listaDetalles);
-        
-        venta = ventaRepository.save(venta); 
+
+        venta = ventaRepository.save(venta);
 
         Pago pago = new Pago();
         pago.setVenta(venta);
         pago.setMetodoPago(dto.getMetodoPago() != null ? dto.getMetodoPago().toUpperCase() : "EFECTIVO");
-        pago.setMonto(dto.getMontoRecibido() != null ? dto.getMontoRecibido() : totalCalculado);
+        // âœ… CORRECCIÃ“N: El pago que ingresa a caja SIEMPRE es el valor del pasaje.
+        // El vuelto es un intercambio en el momento que no afecta la ganancia final.
+        pago.setMonto(totalCalculado);
         pago.setReferenciaOperacion(dto.getReferenciaPago());
         pagoRepository.save(pago);
 
@@ -179,7 +218,7 @@ public class VentaService {
         response.put("correlativo", comprobante.getNumeroCorrelativo());
         response.put("total", venta.getTotal());
         response.put("nombreVendedor", vendedorReal.getNombreCompleto());
-        
+
         return response;
     }
 
@@ -188,16 +227,16 @@ public class VentaService {
         List<Map<String, Object>> lista = new ArrayList<>();
 
         Viaje viaje = viajeRepository.findById(idViaje).orElse(null);
-        
+
         for (VentaDetalle d : detalles) {
             Map<String, Object> map = new HashMap<>();
-            
-            map.put("idVenta", d.getVenta() != null ? d.getVenta().getIdVenta() : d.getIdDetalle()); 
+
+            map.put("idVenta", d.getVenta() != null ? d.getVenta().getIdVenta() : d.getIdDetalle());
             map.put("idDetalle", d.getIdDetalle());
             map.put("asiento", d.getAsiento() != null ? d.getAsiento().getNumero() : "S/A");
             map.put("estado", d.getEstadoPasaje());
             map.put("monto", d.getPrecioUnitario());
-            
+
             if (d.getPasajero() != null) {
                 map.put("nombres", d.getPasajero().getNombres());
                 map.put("apellidoPaterno", d.getPasajero().getApellidoPaterno());
@@ -208,18 +247,18 @@ public class VentaService {
                 map.put("telefono", d.getPasajero().getTelefono());
                 map.put("fechaNacimiento", d.getPasajero().getFechaNacimiento() != null ? d.getPasajero().getFechaNacimiento().toString() : null);
             }
-            
+
             if (d.getPuertoOrigen() != null) {
                 map.put("origen", d.getPuertoOrigen().getCiudad());
                 map.put("nombrePuerto", d.getPuertoOrigen().getNombrePuerto());
-                
+
                 if(viaje != null) {
                     map.put("ordenOrigen", getOrdenEscala(viaje, d.getPuertoOrigen().getIdPuerto()));
                 }
             }
             if (d.getPuertoDestino() != null) {
                 map.put("destino", d.getPuertoDestino().getCiudad());
-                
+
                 if(viaje != null) {
                     map.put("ordenDestino", getOrdenEscala(viaje, d.getPuertoDestino().getIdPuerto()));
                 }
@@ -242,7 +281,7 @@ public class VentaService {
 
                 List<Comprobante> comprobantes = comprobanteRepository.findByVenta_IdVenta(d.getVenta().getIdVenta());
                 if (!comprobantes.isEmpty()) {
-                    Comprobante compFinal = comprobantes.get(0); 
+                    Comprobante compFinal = comprobantes.get(0);
 
                     if ("ANULADO".equals(d.getEstadoPasaje()) || "CANCELADO".equals(d.getEstadoPasaje())) {
                         for (Comprobante c : comprobantes) {
@@ -255,7 +294,7 @@ public class VentaService {
                     map.put("serie", compFinal.getSerie());
                     map.put("correlativo", compFinal.getNumeroCorrelativo());
                 }
-                
+
                 if (d.getVenta().getCajaTurno() != null) {
                     Map<String, Object> turnoMap = new HashMap<>();
                     CajaTurno ct = d.getVenta().getCajaTurno();
@@ -278,14 +317,14 @@ public class VentaService {
     public Map<String, Object> obtenerDetalleVenta(Long idVentaDetalle) {
         VentaDetalle d = detalleRepository.findById(idVentaDetalle)
                 .orElseThrow(() -> new RuntimeException("Detalle de venta no encontrado"));
-                
+
         Map<String, Object> map = new HashMap<>();
-        
-        map.put("idVenta", d.getVenta() != null ? d.getVenta().getIdVenta() : d.getIdDetalle()); 
+
+        map.put("idVenta", d.getVenta() != null ? d.getVenta().getIdVenta() : d.getIdDetalle());
         map.put("asiento", d.getAsiento() != null ? d.getAsiento().getNumero() : "S/A");
         map.put("estado", d.getEstadoPasaje());
         map.put("monto", d.getPrecioUnitario());
-        
+
         if (d.getPasajero() != null) {
             map.put("nombres", d.getPasajero().getNombres());
             map.put("apellidoPaterno", d.getPasajero().getApellidoPaterno());
@@ -296,17 +335,17 @@ public class VentaService {
             map.put("telefono", d.getPasajero().getTelefono());
             map.put("fechaNacimiento", d.getPasajero().getFechaNacimiento() != null ? d.getPasajero().getFechaNacimiento().toString() : null);
         }
-        
+
         if (d.getPuertoOrigen() != null) {
             map.put("origen", d.getPuertoOrigen().getCiudad());
             map.put("nombrePuerto", d.getPuertoOrigen().getNombrePuerto());
             map.put("direccionOrigen", d.getPuertoOrigen().getDireccion());
         }
-        
+
         if (d.getPuertoDestino() != null) {
             map.put("destino", d.getPuertoDestino().getCiudad());
         }
-        
+
         if (d.getVenta() != null && d.getVenta().getUsuarioVendedor() != null) {
             map.put("vendedor", d.getVenta().getUsuarioVendedor().getNombreCompleto());
         }
@@ -315,7 +354,7 @@ public class VentaService {
             List<Comprobante> comprobantes = comprobanteRepository.findByVenta_IdVenta(d.getVenta().getIdVenta());
             if (!comprobantes.isEmpty()) {
                 Comprobante compFinal = comprobantes.get(0);
-                
+
                 if ("ANULADO".equals(d.getEstadoPasaje()) || "CANCELADO".equals(d.getEstadoPasaje())) {
                     for (Comprobante c : comprobantes) {
                         if ("NOTA_CREDITO".equals(c.getTipoComprobante())) {
@@ -344,14 +383,14 @@ public class VentaService {
                 map.put("cajaTurno", turnoMap);
             }
         }
-        
+
         if (d.getVenta() != null) {
             List<Pago> pagos = pagoRepository.findByVenta_IdVenta(d.getVenta().getIdVenta());
             if (!pagos.isEmpty()) {
                 Pago p = pagos.get(0);
                 map.put("metodoPago", p.getMetodoPago());
                 map.put("montoRecibido", p.getMonto());
-                map.put("vuelto", 0); 
+                map.put("vuelto", 0);
             }
         }
 
@@ -362,29 +401,91 @@ public class VentaService {
     public void anularVenta(Long idViaje, String identificador, Usuario usuarioQueAnula) {
         try {
             Long idDetalle = Long.parseLong(identificador);
-            
+
             VentaDetalle d = detalleRepository.findById(idDetalle)
-                    .orElseThrow(() -> new RuntimeException("No se encontró el boleto exacto"));
-                    
+                    .orElseThrow(() -> new RuntimeException("No se encontrÃ³ el boleto exacto"));
+
+            // CANDADO: Debe tener caja abierta para hacer la devoluciÃ³n de efectivo
+            if (d.getVenta() == null || d.getVenta().getViaje() == null || !d.getVenta().getViaje().getIdViaje().equals(idViaje)) {
+                throw new RuntimeException("El boleto no pertenece al viaje indicado.");
+            }
+            if (!"VENDIDO".equalsIgnoreCase(d.getEstadoPasaje())) {
+                throw new RuntimeException("El boleto ya fue anulado o no esta disponible para anulacion.");
+            }
+
+            CajaTurno turnoActivo = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(usuarioQueAnula.getIdUsuario(), "ABIERTO")
+                    .orElseThrow(() -> new RuntimeException("OPERACIÃ“N RECHAZADA: Para procesar una devoluciÃ³n debes tener tu caja ABIERTA."));
+
             d.setEstadoPasaje("ANULADO");
             detalleRepository.save(d);
+
+            // REGLA DE LAS 24 HORAS
+            LocalDateTime fechaVenta = d.getVenta().getFechaVenta();
+            LocalDateTime ahora = LocalDateTime.now();
+            long horasTranscurridas = java.time.Duration.between(fechaVenta, ahora).toHours();
+
+            BigDecimal montoOriginal = d.getPrecioUnitario();
+            BigDecimal montoAdevolver;
+
+            if (horasTranscurridas <= 24) {
+                montoAdevolver = montoOriginal; // Devuelve el 100%
+            } else {
+                montoAdevolver = montoOriginal.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP); // Devuelve el 50%
+            }
 
             Cancelacion cancelacion = new Cancelacion();
             cancelacion.setVenta(d.getVenta());
             cancelacion.setViaje(d.getVenta().getViaje());
-            
-            cancelacion.setUsuarioAutoriza(usuarioQueAnula); 
-            
-            cancelacion.setMotivo("Anulación a solicitud del cliente. Asiento: " + d.getAsiento().getNumero());
-            cancelacion.setMontoDevuelto(d.getPrecioUnitario()); 
-            cancelacion.setFechaCancelacion(LocalDateTime.now());
-            cancelacion.setTipoResolucion("DEVOLUCION_EFECTIVO"); 
+            cancelacion.setUsuarioAutoriza(usuarioQueAnula);
+            cancelacion.setCajaTurno(turnoActivo); // EL DINERO SALE DE ESTA CAJA
+
+            cancelacion.setMotivo("AnulaciÃ³n de Asiento: " + d.getAsiento().getNumero() + " (" + horasTranscurridas + "h transcurridas).");
+            cancelacion.setMontoDevuelto(montoAdevolver);
+            cancelacion.setFechaCancelacion(ahora);
+            cancelacion.setTipoResolucion("DEVOLUCION_EFECTIVO"); // Afecta la caja
+
             cancelacionRepository.save(cancelacion);
 
             facturacionService.generarNotaCredito(d.getVenta(), cancelacion.getMotivo());
 
         } catch (NumberFormatException e) {
-            throw new RuntimeException("El identificador del boleto enviado no es válido.");
+            throw new RuntimeException("El identificador del boleto enviado no es vÃ¡lido.");
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> obtenerVentasDelTurnoActual(Long idUsuario) {
+        // 1. Busca el Ãºltimo turno de caja registrado para este usuario
+        CajaTurno turnoActual = cajaTurnoRepository.findTopByUsuario_IdUsuarioOrderByIdTurnoDesc(idUsuario)
+                .orElse(null);
+
+        if (turnoActual == null) {
+            return new ArrayList<>(); // Si nunca ha abierto caja, retorna una lista vacÃ­a
+        }
+
+        // 2. Busca las ventas asociadas a ese ID de Turno
+        List<Venta> ventas = ventaRepository.findByCajaTurno_IdTurno(turnoActual.getIdTurno());
+
+        // 3. BLINDAJE: Mapeamos los datos manualmente para evitar el bucle infinito de Spring Boot (StackOverflow)
+        List<Map<String, Object>> listaSegura = new ArrayList<>();
+
+        for (Venta v : ventas) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("idVenta", v.getIdVenta());
+            map.put("fechaVenta", v.getFechaVenta() != null ? v.getFechaVenta().toString() : null);
+            map.put("total", v.getTotal());
+
+            // Obtenemos el mÃ©todo de pago
+            List<Pago> pagos = pagoRepository.findByVenta_IdVenta(v.getIdVenta());
+            if (!pagos.isEmpty()) {
+                map.put("metodoPago", pagos.get(0).getMetodoPago());
+            } else {
+                map.put("metodoPago", "EFECTIVO");
+            }
+
+            listaSegura.add(map);
+        }
+
+        return listaSegura;
     }
 }

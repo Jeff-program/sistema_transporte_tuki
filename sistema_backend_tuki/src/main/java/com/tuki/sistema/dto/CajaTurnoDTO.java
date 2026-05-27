@@ -14,4 +14,6 @@ public class CajaTurnoDTO {
     private BigDecimal saldoFinal;
     private BigDecimal diferencia;
     private String estado;
+    private String observacionesApertura;
+    private String observacionesCierre;
 }

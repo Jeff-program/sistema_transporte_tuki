@@ -21,6 +21,7 @@ import ControlCajaPage from './pages/admin/ControlCajaPage';
 import RiosPage from './pages/admin/config/RiosPage';
 import SuperAdminPage from './pages/superadmin/SuperAdminPage';
 import MantenimientoPage from './pages/MantenimientoPage';
+import Caja from './pages/Caja'; // Importamos la nueva página corporativa
 
 const RedirectInicial = () => {
   const userStr = localStorage.getItem('user');
@@ -75,6 +76,11 @@ function App() {
             <Route path='/asesor/ventas' element={<VentaPage />} />
             <Route path="/asesor/pasajeros" element={<PasajerosPage />} />
             <Route path="/asesor/perfil" element={<PerfilPage />} />
+          </Route>
+
+          {/* NUEVA RUTA: EXCLUSIVA SOLO PARA ASESORES Y SUPER ADMIN */}
+          <Route element={<ProtectedRoute allowedRoles={['ASESOR', 'SUPER_ADMIN']} />}>
+            <Route path="/caja" element={<Caja />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" />} />

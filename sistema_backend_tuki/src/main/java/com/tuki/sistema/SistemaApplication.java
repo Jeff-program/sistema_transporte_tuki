@@ -2,6 +2,7 @@ package com.tuki.sistema;
 
 import com.tuki.sistema.entity.Usuario;
 import com.tuki.sistema.repository.UsuarioRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -15,6 +16,15 @@ import java.util.TimeZone;
 @EnableScheduling
 public class SistemaApplication {
 
+    @Value("${app.bootstrap.admin-email:admin@tuki.com}")
+    private String adminEmail;
+    @Value("${app.bootstrap.admin-password:}")
+    private String adminPassword;
+    @Value("${app.bootstrap.superadmin-email:super@tuki.com}")
+    private String superAdminEmail;
+    @Value("${app.bootstrap.superadmin-password:}")
+    private String superAdminPassword;
+
     public static void main(String[] args) {
         SpringApplication.run(SistemaApplication.class, args);
     }
@@ -22,38 +32,26 @@ public class SistemaApplication {
     @Bean
     public CommandLineRunner initAdmin(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         return args -> {
-            // 1. Crear el Administrador General (Si no existe)
-            if (usuarioRepository.findByEmail("admin@tuki.com").isEmpty()) {
+            if (!adminPassword.isBlank() && usuarioRepository.findByEmail(adminEmail).isEmpty()) {
                 Usuario admin = new Usuario();
                 admin.setNombreCompleto("Administrador General");
-                admin.setEmail("admin@tuki.com");
-                admin.setPassword(passwordEncoder.encode("admin123"));
+                admin.setEmail(adminEmail);
+                admin.setPassword(passwordEncoder.encode(adminPassword));
                 admin.setRol("ADMIN");
                 admin.setEstado("ACTIVO");
                 usuarioRepository.save(admin);
-                
-                System.out.println("======================================================");
-                System.out.println("✅ USUARIO ADMINISTRADOR CREADO CON ÉXITO");
-                System.out.println("✉️ Correo: admin@tuki.com");
-                System.out.println("🔑 Clave: admin123");
-                System.out.println("======================================================");
+                System.out.println("Usuario administrador inicial creado: " + adminEmail);
             }
 
-            // 2. Crear el SUPER ADMINISTRADOR (El dueño del sistema)
-            if (usuarioRepository.findByEmail("super@tuki.com").isEmpty()) {
+            if (!superAdminPassword.isBlank() && usuarioRepository.findByEmail(superAdminEmail).isEmpty()) {
                 Usuario superAdmin = new Usuario();
-                superAdmin.setNombreCompleto("Súper Administrador del Sistema");
-                superAdmin.setEmail("super@tuki.com");
-                superAdmin.setPassword(passwordEncoder.encode("superadmin2024")); // Clave más fuerte
+                superAdmin.setNombreCompleto("Super Administrador del Sistema");
+                superAdmin.setEmail(superAdminEmail);
+                superAdmin.setPassword(passwordEncoder.encode(superAdminPassword));
                 superAdmin.setRol("SUPER_ADMIN");
                 superAdmin.setEstado("ACTIVO");
                 usuarioRepository.save(superAdmin);
-                
-                System.out.println("======================================================");
-                System.out.println("🛡️ SUPER ADMINISTRADOR CREADO CON ÉXITO");
-                System.out.println("✉️ Correo: super@tuki.com");
-                System.out.println("🔑 Clave: superadmin2024");
-                System.out.println("======================================================");
+                System.out.println("Usuario super administrador inicial creado: " + superAdminEmail);
             }
         };
     }

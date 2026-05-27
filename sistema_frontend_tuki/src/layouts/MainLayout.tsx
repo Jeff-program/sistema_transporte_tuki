@@ -3,6 +3,8 @@ import { Menu, Bell, ChevronDown, LogOut, Settings } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { getCurrentUser, logout } from '../services/authService';
+import { obtenerCajaActiva } from '../services/cajaService';
+import { notificarError } from '../services/feedbackService';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -39,9 +41,24 @@ const MainLayout = ({ children }: MainLayoutProps) => {
       .replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    const userId = user?.idUsuario || user?.id;
+    if (userId) {
+        try {
+            const resCaja = await obtenerCajaActiva(userId);
+            if (resCaja && resCaja.estado === 'ABIERTO') {
+                notificarError("ACCIÓN BLOQUEADA: Tienes un turno de caja activo. Realiza tu Arqueo y Cierre antes de salir.");
+                setIsProfileOpen(false);
+                return;
+            }
+        } catch (error) {
+            console.error("Error verificando caja", error);
+        }
+    }
+    if (window.confirm('¿Desea cerrar sesión del sistema de forma segura?')) {
+        logout();
+        navigate('/login');
+    }
   };
 
   useEffect(() => {

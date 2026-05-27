@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Home, Anchor, Map, Ticket, LogOut, Ship, Calendar, Users, 
@@ -5,6 +6,8 @@ import {
 } from 'lucide-react';
 import { logout, getCurrentUser } from '../services/authService';
 import logoImg from '../assets/logo.png';
+import { obtenerCajaActiva } from '../services/cajaService';
+import { notificarError } from '../services/feedbackService';
 
 interface SidebarProps {
   isMobile: boolean;
@@ -38,6 +41,7 @@ const MENU_CONFIG = {
     { section: 'Operaciones', items: [
         { label: 'Venta de Pasajes', path: '/asesor/ventas', icon: Ticket },
         { label: 'Manifiestos', path: '/asesor/pasajeros', icon: Users },
+        { label: 'Gestión de Caja', path: '/caja', icon: DollarSign },
     ]}
   ]
 };
@@ -61,10 +65,23 @@ const Sidebar = ({ isMobile, closeMobileMenu }: SidebarProps) => {
       menuActual = MENU_CONFIG.ASESOR;
   }
 
-  const handleLogout = () => {
-    if (window.confirm('¿Desea cerrar sesión?')) {
-      logout();
-      navigate('/login');
+  const handleLogout = async () => {
+    const userId = user?.idUsuario || user?.id;
+    if (userId) {
+        try {
+            const resCaja = await obtenerCajaActiva(userId);
+            if (resCaja && resCaja.estado === 'ABIERTO') {
+                notificarError("⚠️ ACCIÓN BLOQUEADA: Tienes un turno de caja activo. Realiza tu Arqueo y Cierre antes de salir.");
+                return;
+            }
+        } catch (error) {
+            console.error("Error verificando caja", error);
+        }
+    }
+
+    if (window.confirm('¿Desea cerrar sesión del sistema de forma segura?')) {
+        logout();
+        navigate('/login');
     }
   };
 
@@ -112,7 +129,6 @@ const Sidebar = ({ isMobile, closeMobileMenu }: SidebarProps) => {
           <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center border shadow-lg backdrop-blur-sm hover:scale-105 transition-transform duration-300">
             <img alt="tuki Logo" src={logoImg} className="w-[2000px] h-[120px] filter drop-shadow-md" />
           </div>
-          {/* Etiqueta de Rol Dinámica */}
           <span className="mt-3 text-[10px] font-bold bg-white/10 px-2 py-0.5 rounded text-gray-300 tracking-wider">
             {isSuperAdmin ? 'PANEL SÚPER ADMIN' : isAdmin ? 'PANEL GERENCIAL' : 'PANEL OPERATIVO'}
           </span>
@@ -147,13 +163,13 @@ const Sidebar = ({ isMobile, closeMobileMenu }: SidebarProps) => {
           {isSuperAdmin && (
             <div className="px-4 mt-8 mb-4">
                <Link 
-                  to="/superadmin/panel" 
-                  onClick={closeMobileMenu}
-                  className={`flex items-center gap-3 p-3 rounded-xl font-bold border transition-all ${
-                      isActive('/superadmin/panel') 
-                      ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/30' 
-                      : 'text-red-400 border-red-500/30 hover:bg-red-500/10'
-                  }`}
+                 to="/superadmin/panel" 
+                 onClick={closeMobileMenu}
+                 className={`flex items-center gap-3 p-3 rounded-xl font-bold border transition-all ${
+                     isActive('/superadmin/panel') 
+                     ? 'bg-red-600 text-white border-red-500 shadow-lg shadow-red-500/30' 
+                     : 'text-red-400 border-red-500/30 hover:bg-red-500/10'
+                 }`}
                >
                   <ShieldAlert size={20} />
                   Panel S.A.

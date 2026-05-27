@@ -39,4 +39,10 @@ public class CajaTurno {
 
     @Column(length = 20)
     private String estado = "ABIERTO"; 
+
+    @Column(name = "observaciones_apertura", columnDefinition = "TEXT")
+    private String observacionesApertura;
+
+    @Column(name = "observaciones_cierre", columnDefinition = "TEXT")
+    private String observacionesCierre;
 }

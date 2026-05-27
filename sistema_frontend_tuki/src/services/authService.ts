@@ -22,8 +22,9 @@ export const login = async (email: string, password: string): Promise<LoginRespo
 };
 
 export const logout = (): void => {
-    localStorage.removeItem('user');
-    window.location.href = '/login'; 
+    localStorage.clear();   // Elimina tokens e IDs residuales
+    sessionStorage.clear(); // Limpia memoria volátil
+    window.location.href = '/login'; // Fuerza la recarga al login
 };
 
 export const getCurrentUser = (): any => {

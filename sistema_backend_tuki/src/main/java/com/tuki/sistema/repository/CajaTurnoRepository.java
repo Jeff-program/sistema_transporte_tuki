@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface CajaTurnoRepository extends JpaRepository<CajaTurno, Long> {
     Optional<CajaTurno> findByUsuario_IdUsuarioAndEstado(Long idUsuario, String estado);
 
+    Optional<CajaTurno> findTopByUsuario_IdUsuarioOrderByIdTurnoDesc(Long idUsuario);
+
     @Query("SELECT new com.tuki.sistema.dto.AuditoriaCajaDTO( " +
            "c.idTurno, u.nombreCompleto, COALESCE(a.nombreAgencia, 'Sede Principal'), c.estado, " +
            "c.fechaApertura, c.fechaCierre, c.saldoInicial, COALESCE(c.saldoFinal, 0), COALESCE(c.diferencia, 0), " +

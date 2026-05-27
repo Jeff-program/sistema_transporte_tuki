@@ -3,6 +3,7 @@ package com.tuki.sistema.security;
 import com.tuki.sistema.entity.Usuario;
 import com.tuki.sistema.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,6 +22,10 @@ public class CustomUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
+
+        if (!"ACTIVO".equalsIgnoreCase(usuario.getEstado())) {
+            throw new DisabledException("Usuario desactivado");
+        }
 
         return new User(
                 usuario.getEmail(),

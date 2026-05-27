@@ -2,6 +2,7 @@ package com.tuki.sistema.controller;
 
 import com.tuki.sistema.dto.VentaDTO;
 import com.tuki.sistema.entity.Usuario;
+import com.tuki.sistema.entity.Venta;
 import com.tuki.sistema.repository.UsuarioRepository; // <-- NECESITAMOS ESTO
 import com.tuki.sistema.service.VentaService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -78,6 +80,16 @@ public class VentaController {
 
             ventaService.anularVenta(idViaje, asiento, usuarioReal);
             return ResponseEntity.ok(Map.of("mensaje", "Venta anulada correctamente"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/mis-ventas-turno")
+    public ResponseEntity<?> obtenerVentasDelTurnoActual(@RequestParam Long idUsuario) {
+        try {
+            // El servicio ahora retorna una lista limpia y sin bucles infinitos
+            return ResponseEntity.ok(ventaService.obtenerVentasDelTurnoActual(idUsuario));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

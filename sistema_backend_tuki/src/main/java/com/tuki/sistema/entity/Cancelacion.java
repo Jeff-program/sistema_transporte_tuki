@@ -37,4 +37,11 @@ public class Cancelacion {
 
     @Column(name = "tipo_resolucion", length = 50)
     private String tipoResolucion; 
+
+    @ManyToOne
+    @JoinColumn(name = "id_turno")
+    private CajaTurno cajaTurno;
+
+    public CajaTurno getCajaTurno() { return cajaTurno; }
+    public void setCajaTurno(CajaTurno cajaTurno) { this.cajaTurno = cajaTurno; }
 }

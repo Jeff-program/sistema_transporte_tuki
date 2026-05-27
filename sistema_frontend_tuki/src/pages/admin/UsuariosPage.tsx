@@ -20,11 +20,12 @@ const UsuariosPage = () => {
     const usuarioLogueado = getCurrentUser() as any;
 
     const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<any>({
-        defaultValues: { rol: 'ASESOR' } 
+        defaultValues: { rol: 'ASESOR', idAgencia: '' } 
     });
 
     const [usuarios, setUsuarios] = useState<any[]>([]);
     const [puertos, setPuertos] = useState<any[]>([]); 
+    const [agenciasDisponibles, setAgenciasDisponibles] = useState<any[]>([]); // 🔥 Nuevo estado para cargar Agencias
     const [loading, setLoading] = useState(true);
     const [busqueda, setBusqueda] = useState('');
     
@@ -51,6 +52,8 @@ const UsuariosPage = () => {
         try {
             const data = await getUsuarios();
             const dataPuertos = await getPuertos(); 
+            // Cargar agencias para poblar el combo
+            const dataAgencias = await api.get('/agencias');
             
             const usuariosActivos = data.filter((u: any) => u.estado !== 'ELIMINADO');
 
@@ -59,6 +62,7 @@ const UsuariosPage = () => {
             }
             setUsuarios(usuariosActivos);
             setPuertos(dataPuertos.filter((p:any) => p.estado === 'ACTIVO'));
+            setAgenciasDisponibles(dataAgencias.data.filter((a: any) => a.estado === 'ACTIVO'));
         } catch (e) {
             notificarError('Error cargando personal');
         } finally {
@@ -106,9 +110,15 @@ const UsuariosPage = () => {
                     }
                 }
             } else {
+                // ROL ASESOR U OTRO
                 let payload = { ...data };
                 if (!data.password) delete payload.password;
                 if (!payload.idUsuario) delete payload.idUsuario;
+                // Si no es asesor o si eligieron "Sin agencia", nos aseguramos de limpiarlo
+                if (data.rol !== 'ASESOR' || !data.idAgencia) {
+                    payload.idAgencia = ''; 
+                }
+                
                 await saveUsuario(payload);
             }
             
@@ -125,7 +135,7 @@ const UsuariosPage = () => {
     };
 
     const abrirModalNuevo = () => {
-        reset({ idUsuario: null, idAgencia: null, nombreCompleto: '', email: '', password: '', rol: 'ASESOR', idPuerto: '', nombreAgencia: '', direccionAgencia: '', telefonoAgencia: '' });
+        reset({ idUsuario: null, idAgencia: '', nombreCompleto: '', email: '', password: '', rol: 'ASESOR', idPuerto: '', nombreAgencia: '', direccionAgencia: '', telefonoAgencia: '' });
         setEditando(false);
         setUsuarioEditar(null);
         setIsModalOpen(true);
@@ -150,6 +160,11 @@ const UsuariosPage = () => {
             setValue('direccionAgencia', u.agencia.direccion);
             setValue('telefonoAgencia', u.agencia.telefono);
             setValue('idPuerto', u.agencia.puerto?.idPuerto);
+        } else if (u.rol === 'ASESOR' && u.agencia) {
+            // 🔥 Si es asesor y ya tiene agencia, poblamos el combo
+            setValue('idAgencia', u.agencia.idAgencia);
+        } else {
+            setValue('idAgencia', '');
         }
         
         setEditando(true);
@@ -208,7 +223,8 @@ const UsuariosPage = () => {
             u.nombreCompleto.toLowerCase().includes(textoBusqueda) || 
             u.email.toLowerCase().includes(textoBusqueda) ||
             u.rol.toLowerCase().includes(textoBusqueda) ||
-            (u.agencia?.puerto?.ciudad || '').toLowerCase().includes(textoBusqueda)
+            (u.agencia?.puerto?.ciudad || '').toLowerCase().includes(textoBusqueda) ||
+            (u.agencia?.nombreAgencia || '').toLowerCase().includes(textoBusqueda) // 🔥 Permitir buscar por nombre de agencia
         );
     });
 
@@ -228,7 +244,7 @@ const UsuariosPage = () => {
                         <div className="p-3 bg-blue-50 rounded-xl text-[#1ABB9C]"><Users size={28} /></div>
                         <div>
                             <h1 className="text-2xl font-bold text-[#2A3F54]">Gestión de Personal</h1>
-                            <p className="text-sm text-gray-400 mt-1">Administra los accesos de administradores y agencias.</p>
+                            <p className="text-sm text-gray-400 mt-1">Administra los accesos de administradores, asesores y agencias.</p>
                         </div>
                     </div>
                     
@@ -281,7 +297,7 @@ const UsuariosPage = () => {
                                         <th className="px-6 py-4 text-center text-[#1ABB9C] w-16">N°</th>
                                         <th className="px-6 py-4 min-w-[250px]">Usuario y Contacto</th>
                                         <th className="px-6 py-4 text-center">Rol / Entidad</th>
-                                        <th className="px-6 py-4 text-center">Ciudad</th>
+                                        <th className="px-6 py-4 text-center">Ubicación / Agencia</th>
                                         <th className="px-6 py-4 text-center">Estado / Acceso</th>
                                         <th className="px-6 py-4 text-center">Acciones</th>
                                     </tr>
@@ -317,13 +333,19 @@ const UsuariosPage = () => {
                                             </td>
 
                                             <td className="px-6 py-4 text-center font-bold text-gray-600 text-xs">
-                                                {u.rol === 'AGENCIA' && u.agencia?.puerto ? (
-                                                    <span className="flex items-center justify-center gap-1">
-                                                        <MapPin size={12} className="text-[#1ABB9C]" /> {u.agencia.puerto.ciudad}
-                                                    </span>
+                                                {/* 🔥 AHORA SE MUESTRA A QUÉ AGENCIA PERTENECE EL ASESOR O LA AGENCIA */}
+                                                {(u.rol === 'AGENCIA' || u.rol === 'ASESOR') && u.agencia?.puerto ? (
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="flex items-center justify-center gap-1 text-[#2A3F54]">
+                                                            <Building2 size={12} className="text-[#1ABB9C]" /> {u.agencia.nombreAgencia}
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 font-normal">
+                                                            ({u.agencia.puerto.ciudad})
+                                                        </span>
+                                                    </div>
                                                 ) : u.rol === 'ASESOR' ? (
-                                                    <span className="flex items-center justify-center gap-1">
-                                                        <MapPin size={12} className="text-[#1ABB9C]" /> Iquitos
+                                                    <span className="flex items-center justify-center gap-1 text-gray-400">
+                                                        <MapPin size={12} /> Sin asignar
                                                     </span>
                                                 ) : (
                                                     <span className="text-gray-300">—</span>
@@ -410,12 +432,28 @@ const UsuariosPage = () => {
                                             <select {...register('rol')} className="w-full bg-gray-50 border border-gray-200 p-2.5 rounded-xl text-sm outline-none focus:border-[#1ABB9C] focus:bg-white transition-colors cursor-pointer" disabled={editando}>
                                                 <option value="ASESOR">Asesor de Ventas</option>
                                                 <option value="ADMIN">Administrador</option>
-                                                <option value="AGENCIA">Agencia</option>
+                                                <option value="AGENCIA">Agencia de Ventas (Sucursal)</option>
                                                 {usuarioLogueado?.rol === 'SUPER_ADMIN' && (
                                                     <option value="SUPER_ADMIN">Súper Administrador</option>
                                                 )}
                                             </select>
                                         </div>
+
+                                        {/* 🔥 MOSTRAR COMBO DE ASIGNAR AGENCIA SI ES ASESOR 🔥 */}
+                                        {rolSeleccionado === 'ASESOR' && (
+                                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 space-y-3 mt-2 animate-in fade-in slide-in-from-top-2">
+                                                <label className="text-xs font-bold text-blue-800 uppercase flex items-center gap-1 mb-2"><Building2 size={14}/> Asignar a Sucursal</label>
+                                                <select {...register('idAgencia')} className="w-full bg-white border border-blue-200 p-2 rounded-lg text-xs outline-none focus:border-blue-500 cursor-pointer text-blue-900">
+                                                    <option value="">-- Asesor Libre (Sin agencia) --</option>
+                                                    {agenciasDisponibles.map(agencia => (
+                                                        <option key={agencia.idAgencia} value={agencia.idAgencia}>
+                                                            {agencia.nombreAgencia} ({agencia.puerto?.ciudad})
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <p className="text-[10px] text-blue-600 leading-tight">Si seleccionas una agencia, todo el dinero que ingrese este asesor irá a la caja de dicha agencia.</p>
+                                            </div>
+                                        )}
 
                                         {rolSeleccionado === 'AGENCIA' && (
                                             <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 space-y-3 mt-2 animate-in fade-in slide-in-from-top-2">

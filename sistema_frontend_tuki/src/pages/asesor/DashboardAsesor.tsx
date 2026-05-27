@@ -4,10 +4,9 @@ import MainLayout from '../../layouts/MainLayout';
 import { getViajes, getEmbarcaciones } from '../../services/configService';
 import { getManifiesto } from '../../services/ventaService';
 import { getCurrentUser } from '../../services/authService';
-import ModalCaja from '../../components/ModalCaja';
 import { 
-    Ticket, Users, Ship, AlertTriangle, ArrowRight, 
-    Calendar, Activity, CheckCircle, Clock, Timer, Lock,
+    Ticket, Users, Ship, ArrowRight, 
+    Calendar, Activity, CheckCircle, Clock, Timer,
     ChevronLeft,
     ChevronRight
 } from 'lucide-react';
@@ -42,11 +41,10 @@ const DashboardAsesor = () => {
     const [salidas, setSalidas] = useState<SalidaOperativa[]>([]);
     const [alertas, setAlertas] = useState<AlertaOperativa[]>([]);
     const [loading, setLoading] = useState(true);
-    const [modalCajaAbierto, setModalCajaAbierto] = useState(false);
     
     const [horaPeru, setHoraPeru] = useState(new Date());
 
-    // 🔥 ESTADOS PARA LA PAGINACIÓN 🔥
+    // 🔥 ESTADOS PARA LA PAGINACIÓN (5 filas por página) 🔥
     const [paginaActual, setPaginaActual] = useState(1);
     const salidasPorPagina = 5;
 
@@ -229,7 +227,7 @@ const DashboardAsesor = () => {
 
             viajesProcesados.sort((a, b) => a.fechaObjeto.getTime() - b.fechaObjeto.getTime());
             setSalidas(viajesProcesados);
-            setPaginaActual(1); // Reiniciar paginación al recargar datos
+            setPaginaActual(1); 
 
             const proximo = viajesProcesados.find(v => v.fechaObjeto > ahora && v.estadoVisual !== 'CANCELADO');
 
@@ -242,11 +240,6 @@ const DashboardAsesor = () => {
 
             setGraficoVentas(Object.entries(historicoDias).map(([name, value]) => ({ name, value })).sort((a,b) => a.name.localeCompare(b.name)));
             setGraficoPagos(Object.entries(metodosPago).map(([name, value]) => ({ name, value })));
-
-            // Aunque calculemos alertas, ya no las mostraremos visualmente para dar todo el espacio a la caja
-            const nuevasAlertas: AlertaOperativa[] = [];
-            // ... (Se mantiene lógica por debajo por si se ocupa en el futuro)
-            setAlertas(nuevasAlertas);
 
         } catch (error) {
             console.error("Error cargando dashboard:", error);
@@ -436,161 +429,117 @@ const DashboardAsesor = () => {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                            {/* IZQUIERDA: ITINERARIO */}
-                            <div className="lg:col-span-8 flex flex-col gap-6">
-                                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col">
-                                    <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                                        <div>
-                                            <h2 className="font-bold text-[#2A3F54] text-lg flex items-center gap-2">
-                                                <Calendar size={20} className="text-[#1ABB9C]" /> Itinerario Semanal
-                                            </h2>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="overflow-x-auto flex-1">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="text-xs text-gray-400 uppercase bg-white border-b border-gray-100">
-                                                <tr>
-                                                    <th className="px-6 py-4 font-semibold">Salida</th>
-                                                    <th className="px-6 py-4 font-semibold">Ruta & Nave</th>
-                                                    <th className="px-6 py-4 font-semibold w-1/3 text-center">Ocupación General</th>
-                                                    <th className="px-6 py-4 font-semibold text-right">Acción</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-gray-50">
-                                                {salidasPaginadas.length === 0 ? (
-                                                    <tr><td colSpan={4} className="p-12 text-center text-gray-400 bg-gray-50">No hay viajes programados para esta semana.</td></tr>
-                                                ) : (
-                                                    salidasPaginadas.map((salida) => {
-                                                        const porcentaje = calcPorcentaje(salida.ocupados, salida.total);
-                                                        return (
-                                                            <tr key={salida.id} className="hover:bg-blue-50/30 transition-colors group">
-                                                                <td className="px-6 py-4">
-                                                                    <div className="flex flex-col">
-                                                                        <span className="font-mono font-bold text-base text-[#2A3F54]">{salida.hora}</span>
-                                                                        <span className="text-[11px] text-gray-400 font-medium">{salida.fecha}</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4">
-                                                                    <div className="font-bold text-[#2A3F54]">{salida.ruta}</div>
-                                                                    <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                                                        <Ship size={12} className="text-blue-400"/> {salida.nave}
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4">
-                                                                    <div className="flex justify-between text-xs mb-1.5 font-semibold">
-                                                                        <span className={porcentaje >= 90 ? 'text-red-500' : 'text-[#2A3F54]'}>
-                                                                            {salida.ocupados} pasajeros
-                                                                        </span>
-                                                                        <span className="text-gray-400 font-normal">
-                                                                            {Math.max(0, salida.total - salida.ocupados)} libres
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                                                                        <div 
-                                                                            className={`h-full rounded-full transition-all duration-500 ${getColorBarra(porcentaje)}`} 
-                                                                            style={{ width: `${porcentaje}%` }}
-                                                                        ></div>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="px-6 py-4 text-right">
-                                                                    {salida.estadoVisual === 'LLENO' ? (
-                                                                        <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 inline-block">LLENO</span>
-                                                                    ) : salida.estadoVisual === 'EN CURSO' ? (
-                                                                        <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 inline-block">ZARPÓ</span>
-                                                                    ) : salida.estadoVisual === 'CANCELADO' ? (
-                                                                        <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 inline-block">CANCELADO</span>
-                                                                    ) : (
-                                                                        <button 
-                                                                            type="button"
-                                                                            onClick={() => navigate(`/asesor/ventas?viaje=${salida.id}`)}
-                                                                            className="bg-white border border-[#1ABB9C] text-[#1ABB9C] hover:bg-[#1ABB9C] hover:text-white text-xs font-bold px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95 flex items-center gap-2 ml-auto"
-                                                                        >
-                                                                            Vender <Ticket size={14} />
-                                                                        </button>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        );
-                                                    })
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    
-                                    {/* CONTROLES DE PAGINACIÓN */}
-                                    {totalPaginas > 1 && (
-                                        <div className="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-between bg-gray-50/50 gap-4">
-                                            <span className="text-xs text-gray-500 font-medium">
-                                                Mostrando {indexPrimeraSalida + 1} - {Math.min(indexUltimaSalida, salidas.length)} de {salidas.length} salidas
-                                            </span>
-                                            <div className="flex items-center gap-2">
-                                                <button 
-                                                    onClick={irPaginaAnterior} 
-                                                    disabled={paginaActual === 1}
-                                                    className="px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-[#1ABB9C] hover:border-[#1ABB9C] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                                >
-                                                    <ChevronLeft size={16}/>
-                                                </button>
-                                                <button 
-                                                    onClick={irPaginaSiguiente} 
-                                                    disabled={paginaActual === totalPaginas}
-                                                    className="px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-[#1ABB9C] hover:border-[#1ABB9C] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                                                >
-                                                    <ChevronRight size={16}/>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                </div>
-                            </div>
-
-                            {/* 🔥 DERECHA: CAJA VIBRANTE REDISEÑADA Y COMPACTA 🔥 */}
-                            <div className="lg:col-span-4 self-start">
-                                <div className="bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 rounded-2xl shadow-xl shadow-orange-300/40 overflow-hidden w-full flex flex-col relative group p-8">
-                                    {/* Elementos decorativos de fondo */}
-                                    <div className="absolute -right-10 -top-10 text-white/10 group-hover:rotate-12 group-hover:scale-110 transition-all duration-700 pointer-events-none">
-                                        <Lock size={180} />
-                                    </div>
-                                    <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-                                    
-                                    <div className="relative z-10 flex flex-col items-center justify-center text-center">
-                                        <div className="bg-white/20 p-5 rounded-full backdrop-blur-md border border-white/30 shadow-inner mb-5 group-hover:-translate-y-2 transition-transform duration-500">
-                                            <Lock size={48} className="text-white drop-shadow-md" />
-                                        </div>
-                                        
-                                        <h3 className="text-3xl font-black text-white tracking-tight mb-3 drop-shadow-md">
-                                            Gestión de Caja
-                                        </h3>
-                                        
-                                        <p className="text-orange-50 text-sm font-medium leading-relaxed opacity-90 px-2 mb-8">
-                                            Controla tus ingresos del turno. Abre tu caja al iniciar tu jornada y ciérrala antes de retirarte.
-                                        </p>
-                                        
-                                        <button 
-                                            onClick={() => setModalCajaAbierto(true)}
-                                            className="w-full bg-white text-orange-600 hover:text-rose-600 font-black py-4 px-6 rounded-xl shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:shadow-[0_8px_25px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-3 text-base border-b-4 border-orange-100"
-                                        >
-                                            <Activity size={20} className="animate-pulse" /> 
-                                            Abrir Panel de Caja
-                                        </button>
+                        {/* 4. ITINERARIO (TOMA TODO EL ESPACIO AHORA) */}
+                        <div className="w-full flex flex-col gap-6">
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1 flex flex-col">
+                                <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                                    <div>
+                                        <h2 className="font-bold text-[#2A3F54] text-lg flex items-center gap-2">
+                                            <Calendar size={20} className="text-[#1ABB9C]" /> Itinerario Semanal
+                                        </h2>
                                     </div>
                                 </div>
-                            </div>
+                                
+                                <div className="overflow-x-auto flex-1">
+                                    <table className="w-full text-sm text-left">
+                                        <thead className="text-xs text-gray-400 uppercase bg-white border-b border-gray-100">
+                                            <tr>
+                                                <th className="px-6 py-4 font-semibold">Salida</th>
+                                                <th className="px-6 py-4 font-semibold">Ruta & Nave</th>
+                                                <th className="px-6 py-4 font-semibold w-1/3 text-center">Ocupación General</th>
+                                                <th className="px-6 py-4 font-semibold text-right">Acción</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-50">
+                                            {salidasPaginadas.length === 0 ? (
+                                                <tr><td colSpan={4} className="p-12 text-center text-gray-400 bg-gray-50">No hay viajes programados para esta semana.</td></tr>
+                                            ) : (
+                                                salidasPaginadas.map((salida) => {
+                                                    const porcentaje = calcPorcentaje(salida.ocupados, salida.total);
+                                                    return (
+                                                        <tr key={salida.id} className="hover:bg-blue-50/30 transition-colors group">
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-mono font-bold text-base text-[#2A3F54]">{salida.hora}</span>
+                                                                    <span className="text-[11px] text-gray-400 font-medium">{salida.fecha}</span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="font-bold text-[#2A3F54]">{salida.ruta}</div>
+                                                                <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                                                                    <Ship size={12} className="text-blue-400"/> {salida.nave}
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <div className="flex justify-between text-xs mb-1.5 font-semibold">
+                                                                    <span className={porcentaje >= 90 ? 'text-red-500' : 'text-[#2A3F54]'}>
+                                                                        {salida.ocupados} pasajeros
+                                                                    </span>
+                                                                    <span className="text-gray-400 font-normal">
+                                                                        {Math.max(0, salida.total - salida.ocupados)} libres
+                                                                    </span>
+                                                                </div>
+                                                                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                                                                    <div 
+                                                                        className={`h-full rounded-full transition-all duration-500 ${getColorBarra(porcentaje)}`} 
+                                                                        style={{ width: `${porcentaje}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                {salida.estadoVisual === 'LLENO' ? (
+                                                                    <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 inline-block">LLENO</span>
+                                                                ) : salida.estadoVisual === 'EN CURSO' ? (
+                                                                    <span className="text-xs font-bold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 inline-block">ZARPÓ</span>
+                                                                ) : salida.estadoVisual === 'CANCELADO' ? (
+                                                                    <span className="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100 inline-block">CANCELADO</span>
+                                                                ) : (
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => navigate(`/asesor/ventas?viaje=${salida.id}`)}
+                                                                        className="bg-white border border-[#1ABB9C] text-[#1ABB9C] hover:bg-[#1ABB9C] hover:text-white text-xs font-bold px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95 flex items-center gap-2 ml-auto"
+                                                                    >
+                                                                        Vender <Ticket size={14} />
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                {/* CONTROLES DE PAGINACIÓN */}
+                                {totalPaginas > 1 && (
+                                    <div className="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-between bg-gray-50/50 gap-4">
+                                        <span className="text-xs text-gray-500 font-medium">
+                                            Mostrando {indexPrimeraSalida + 1} - {Math.min(indexUltimaSalida, salidas.length)} de {salidas.length} salidas
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button 
+                                                onClick={irPaginaAnterior} 
+                                                disabled={paginaActual === 1}
+                                                className="px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-[#1ABB9C] hover:border-[#1ABB9C] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                <ChevronLeft size={16}/>
+                                            </button>
+                                            <button 
+                                                onClick={irPaginaSiguiente} 
+                                                disabled={paginaActual === totalPaginas}
+                                                className="px-3 py-1.5 text-xs font-bold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-[#1ABB9C] hover:border-[#1ABB9C] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                <ChevronRight size={16}/>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
+                            </div>
                         </div>
                     </>
                 )}
-                
-                {/* MODAL DE CAJA */}
-                <ModalCaja 
-                    isOpen={modalCajaAbierto} 
-                    onClose={() => setModalCajaAbierto(false)} 
-                    onSuccess={() => { /* KPIs aquí llamando a cargarDashboard() */ }}
-                />
-                
             </div>
         </MainLayout>
     );

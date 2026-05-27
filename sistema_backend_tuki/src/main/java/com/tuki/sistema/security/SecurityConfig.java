@@ -2,6 +2,7 @@ package com.tuki.sistema.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -38,7 +39,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, MantenimientoFilter mantenimientoFilter) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -46,11 +47,20 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
-                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "ADMINISTRADOR")
+                .requestMatchers("/api/superadmin/**").hasRole("SUPER_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/usuarios/*/foto").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/usuarios/perfil/*").authenticated()
+                .requestMatchers("/api/usuarios/**", "/api/reportes/**").hasAnyRole("ADMIN", "ADMINISTRADOR", "SUPER_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/agencias/**", "/api/rios/**", "/api/puertos/**", "/api/embarcaciones/**", "/api/rutas/**", "/api/escalas/**", "/api/tarifas/**", "/api/viajes/**").hasAnyRole("ADMIN", "ADMINISTRADOR", "SUPER_ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/agencias/**", "/api/rios/**", "/api/puertos/**", "/api/embarcaciones/**", "/api/rutas/**", "/api/escalas/**", "/api/tarifas/**", "/api/viajes/**").hasAnyRole("ADMIN", "ADMINISTRADOR", "SUPER_ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/agencias/**", "/api/rios/**", "/api/puertos/**", "/api/embarcaciones/**", "/api/rutas/**", "/api/escalas/**", "/api/tarifas/**", "/api/viajes/**").hasAnyRole("ADMIN", "ADMINISTRADOR", "SUPER_ADMIN")
+                .requestMatchers("/api/caja/**").hasAnyRole("ASESOR", "AGENCIA", "ADMIN", "ADMINISTRADOR", "SUPER_ADMIN")
+                .requestMatchers("/api/ventas/**", "/api/pasajeros/**").hasAnyRole("ASESOR", "AGENCIA", "ADMIN", "ADMINISTRADOR", "SUPER_ADMIN")
                 .anyRequest().authenticated()
             );
 
         http.addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterAfter(mantenimientoFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
 

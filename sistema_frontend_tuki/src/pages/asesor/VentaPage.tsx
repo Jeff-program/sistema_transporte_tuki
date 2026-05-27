@@ -8,16 +8,14 @@ import ModalPagoPOS from '../../components/ModalPagoPOS';
 import type { DatosPago } from '../../components/ModalPagoPOS';
 import ModalTicket from '../../components/ModalTicket';
 import api from '../../services/api';
-import { getViajesProgramados,getEscalasPorRuta,getTarifa,getRutas,getEmbarcaciones
-} from '../../services/configService';
+import { getViajesProgramados,getEscalasPorRuta,getTarifa,getRutas,getEmbarcaciones } from '../../services/configService';
 import { getMapaAsientos } from '../../services/ventaService';
+import { obtenerCajaActiva } from '../../services/cajaService'; // 🔥 NUEVO: Importamos el servicio de caja
 import {
     Loader,MapPin,Anchor,Ticket,Calendar,Ship,AlertCircle,Trash2,Users,
     User,Globe,Phone,CreditCard,ChevronDown,ArrowRight, FormIcon, RefreshCw
 } from 'lucide-react';
-import {
-    notificarError,notificarExito,notificarCarga,cerrarNotificacion
-} from '../../services/feedbackService';
+import { notificarError,notificarExito,notificarCarga,cerrarNotificacion } from '../../services/feedbackService';
 import { getCurrentUser } from '../../services/authService';
 
 const soloLetrasRegex = /^[A-Za-zÑñÁáÉéÍíÓóÚúÜü\s]+$/;
@@ -54,13 +52,11 @@ const ventaGrupalSchema = yup.object({
 });
 
 const NACIONALIDADES = [
-    "PERUANA",
-    "ALEMANA", "ARGENTINA", "AUSTRALIANA", "BOLIVIANA", "BRASILEÑA",
-    "BRITÁNICA", "CANADIENSE", "CHILENA", "CHINA", "COLOMBIANA",
-    "COSTARRICENSE", "CUBANA", "ECUATORIANA", "ESPAÑOLA", "ESTADOUNIDENSE",
-    "FRANCESA", "HOLANDESA", "ISRAELÍ", "ITALIANA", "JAPONESA",
-    "MEXICANA", "PANAMEÑA", "PARAGUAYA", "PORTUGUESA", "SUECA",
-    "SUIZA", "SURCOREANA", "URUGUAYA", "VENEZOLANA"
+    "PERUANA", "ALEMANA", "ARGENTINA", "AUSTRALIANA", "BOLIVIANA", "BRASILEÑA",
+    "BRITÁNICA", "CANADIENSE", "CHILENA", "CHINA", "COLOMBIANA", "COSTARRICENSE", 
+    "CUBANA", "ECUATORIANA", "ESPAÑOLA", "ESTADOUNIDENSE", "FRANCESA", "HOLANDESA", 
+    "ISRAELÍ", "ITALIANA", "JAPONESA", "MEXICANA", "PANAMEÑA", "PARAGUAYA", 
+    "PORTUGUESA", "SUECA", "SUIZA", "SURCOREANA", "URUGUAYA", "VENEZOLANA"
 ];
 
 const calcularFechaEscalaVenta = (fechaSalidaViaje: string, puertosRuta: any[], origenId: string) => {
@@ -108,14 +104,11 @@ const VentaPage = () => {
     const [mostrarModalPago, setMostrarModalPago] = useState(false);
     const [ticketData, setTicketData] = useState<{ venta: any, pago: any } | null>(null);
 
+    // 🔥 NUEVO ESTADO: Guardará el ID de la caja cuando consultemos al backend
+    const [idTurnoActivo, setIdTurnoActivo] = useState<number | null>(null);
+
     const {
-        register,
-        control,
-        handleSubmit,
-        setValue,
-        getValues,
-        watch,
-        formState: { errors }
+        register, control, handleSubmit, setValue, getValues, watch, formState: { errors }
     } = useForm({
         resolver: yupResolver(ventaGrupalSchema),
         defaultValues: { pasajeros: [] }
@@ -327,21 +320,34 @@ const VentaPage = () => {
         }
     };
 
-    const onValidarFormulario = () => {
-        const idTurno = localStorage.getItem('idTurnoCajaAbierta');
-        if (!idTurno) return notificarError("Debe aperturar su caja antes de vender.");
-        
-        // Verificamos que no intenten pagar si tienen un pasajero sin asiento
-        const haySinAsiento = pasajerosWatch.some(p => p.numeroAsiento === '');
-        if (haySinAsiento) {
-            return notificarError("Hay pasajeros sin asiento asignado. Por favor, seleccione asientos libres en el mapa.");
+    // 🔥 MODIFICACIÓN IMPORTANTE: Consultamos el backend en vivo
+    const onValidarFormulario = async () => {
+        const user = getCurrentUser();
+        const userId = user?.idUsuario || user?.id;
+
+        try {
+            // Preguntamos al servidor si hay una caja abierta (adiós localStorage)
+            const res = await obtenerCajaActiva(userId);
+            
+            if (!res || res.estado !== 'ABIERTO') {
+                return notificarError("Debe aperturar su caja en el módulo de 'Control de Caja' antes de vender.");
+            }
+            
+            // Guardamos el ID real de la caja para enviarlo al procesar
+            setIdTurnoActivo(res.idTurno);
+
+            const haySinAsiento = pasajerosWatch.some(p => p.numeroAsiento === '');
+            if (haySinAsiento) {
+                return notificarError("Hay pasajeros sin asiento asignado. Por favor, seleccione asientos libres en el mapa.");
+            }
+            
+            setMostrarModalPago(true);
+        } catch (error) {
+            notificarError("Error verificando el estado de su caja. Intente nuevamente.");
         }
-        
-        setMostrarModalPago(true);
     };
 
     const procesarPagoGrupal = async (datosPago: DatosPago) => {
-        const idTurno = localStorage.getItem('idTurnoCajaAbierta');
         const toastId = notificarCarga("Procesando venta grupal...");
 
         try {
@@ -362,7 +368,7 @@ const VentaPage = () => {
 
             const payload = {
                 idViaje: viajeSeleccionado.idViaje,
-                idTurno: parseInt(idTurno as string),
+                idTurno: idTurnoActivo, // 🔥 Usamos la variable directa validada
                 tipoComprobante: datosPago.tipoComprobante,
                 documentoCliente: datosPago.documentoCliente,
                 razonSocialNombre: datosPago.razonSocialNombre?.toUpperCase(),
@@ -405,7 +411,6 @@ const VentaPage = () => {
             cargarDatosDeVenta();
         } catch (error: any) {
             cerrarNotificacion(toastId);
-            
             setMostrarModalPago(false);
             
             const msjError = error.response?.data?.mensaje || error.response?.data || "El asiento ya fue comprado. Verifique disponibilidad.";
@@ -414,12 +419,9 @@ const VentaPage = () => {
             getMapaAsientos(viajeSeleccionado.idViaje, parseInt(origenId), parseInt(destinoId))
                 .then(mapaFresco => {
                     setMapaEstados(mapaFresco);
-                    
                     const pasajerosActuales = getValues("pasajeros") || [];
-                    
                     for (let i = pasajerosActuales.length - 1; i >= 0; i--) {
                         if (mapaFresco[pasajerosActuales[i].numeroAsiento] === 'VENDIDO') {
-                            // SOLO LE QUITAMOS EL NUMERO DE ASIENTO, PERO CONSERVAMOS LOS DATOS DEL PASAJERO
                             setValue(`pasajeros.${i}.numeroAsiento`, '', { shouldValidate: true }); 
                         }
                     }
@@ -487,7 +489,6 @@ const VentaPage = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mt-4">
                         {/* Zarpe */}
                         <div>
-                            {/* HEADER DEL ZARPE CON BOTÓN DE ACTUALIZAR */}
                             <div className="flex items-center justify-between mb-1.5">
                                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                                     <Calendar size={13} className="text-[#1ABB9C]" /> Seleccione Zarpe
