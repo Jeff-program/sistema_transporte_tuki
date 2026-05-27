@@ -203,8 +203,6 @@ public class VentaService {
         Pago pago = new Pago();
         pago.setVenta(venta);
         pago.setMetodoPago(dto.getMetodoPago() != null ? dto.getMetodoPago().toUpperCase() : "EFECTIVO");
-        // âœ… CORRECCIÃ“N: El pago que ingresa a caja SIEMPRE es el valor del pasaje.
-        // El vuelto es un intercambio en el momento que no afecta la ganancia final.
         pago.setMonto(totalCalculado);
         pago.setReferenciaOperacion(dto.getReferenciaPago());
         pagoRepository.save(pago);
@@ -405,7 +403,6 @@ public class VentaService {
             VentaDetalle d = detalleRepository.findById(idDetalle)
                     .orElseThrow(() -> new RuntimeException("No se encontrÃ³ el boleto exacto"));
 
-            // CANDADO: Debe tener caja abierta para hacer la devoluciÃ³n de efectivo
             if (d.getVenta() == null || d.getVenta().getViaje() == null || !d.getVenta().getViaje().getIdViaje().equals(idViaje)) {
                 throw new RuntimeException("El boleto no pertenece al viaje indicado.");
             }
@@ -419,7 +416,6 @@ public class VentaService {
             d.setEstadoPasaje("ANULADO");
             detalleRepository.save(d);
 
-            // REGLA DE LAS 24 HORAS
             LocalDateTime fechaVenta = d.getVenta().getFechaVenta();
             LocalDateTime ahora = LocalDateTime.now();
             long horasTranscurridas = java.time.Duration.between(fechaVenta, ahora).toHours();
@@ -428,7 +424,7 @@ public class VentaService {
             BigDecimal montoAdevolver;
 
             if (horasTranscurridas <= 24) {
-                montoAdevolver = montoOriginal; // Devuelve el 100%
+                montoAdevolver = montoOriginal;
             } else {
                 montoAdevolver = montoOriginal.divide(new BigDecimal("2"), 2, java.math.RoundingMode.HALF_UP); // Devuelve el 50%
             }
@@ -437,12 +433,12 @@ public class VentaService {
             cancelacion.setVenta(d.getVenta());
             cancelacion.setViaje(d.getVenta().getViaje());
             cancelacion.setUsuarioAutoriza(usuarioQueAnula);
-            cancelacion.setCajaTurno(turnoActivo); // EL DINERO SALE DE ESTA CAJA
+            cancelacion.setCajaTurno(turnoActivo);
 
             cancelacion.setMotivo("AnulaciÃ³n de Asiento: " + d.getAsiento().getNumero() + " (" + horasTranscurridas + "h transcurridas).");
             cancelacion.setMontoDevuelto(montoAdevolver);
             cancelacion.setFechaCancelacion(ahora);
-            cancelacion.setTipoResolucion("DEVOLUCION_EFECTIVO"); // Afecta la caja
+            cancelacion.setTipoResolucion("DEVOLUCION_EFECTIVO");
 
             cancelacionRepository.save(cancelacion);
 
@@ -455,18 +451,15 @@ public class VentaService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> obtenerVentasDelTurnoActual(Long idUsuario) {
-        // 1. Busca el Ãºltimo turno de caja registrado para este usuario
         CajaTurno turnoActual = cajaTurnoRepository.findTopByUsuario_IdUsuarioOrderByIdTurnoDesc(idUsuario)
                 .orElse(null);
 
         if (turnoActual == null) {
-            return new ArrayList<>(); // Si nunca ha abierto caja, retorna una lista vacÃ­a
+            return new ArrayList<>();
         }
 
-        // 2. Busca las ventas asociadas a ese ID de Turno
         List<Venta> ventas = ventaRepository.findByCajaTurno_IdTurno(turnoActual.getIdTurno());
 
-        // 3. BLINDAJE: Mapeamos los datos manualmente para evitar el bucle infinito de Spring Boot (StackOverflow)
         List<Map<String, Object>> listaSegura = new ArrayList<>();
 
         for (Venta v : ventas) {
@@ -475,7 +468,6 @@ public class VentaService {
             map.put("fechaVenta", v.getFechaVenta() != null ? v.getFechaVenta().toString() : null);
             map.put("total", v.getTotal());
 
-            // Obtenemos el mÃ©todo de pago
             List<Pago> pagos = pagoRepository.findByVenta_IdVenta(v.getIdVenta());
             if (!pagos.isEmpty()) {
                 map.put("metodoPago", pagos.get(0).getMetodoPago());

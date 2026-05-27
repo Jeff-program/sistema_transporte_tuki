@@ -52,7 +52,6 @@ const UsuariosPage = () => {
         try {
             const data = await getUsuarios();
             const dataPuertos = await getPuertos(); 
-            // Cargar agencias para poblar el combo
             const dataAgencias = await api.get('/agencias');
             
             const usuariosActivos = data.filter((u: any) => u.estado !== 'ELIMINADO');
@@ -110,11 +109,9 @@ const UsuariosPage = () => {
                     }
                 }
             } else {
-                // ROL ASESOR U OTRO
                 let payload = { ...data };
                 if (!data.password) delete payload.password;
                 if (!payload.idUsuario) delete payload.idUsuario;
-                // Si no es asesor o si eligieron "Sin agencia", nos aseguramos de limpiarlo
                 if (data.rol !== 'ASESOR' || !data.idAgencia) {
                     payload.idAgencia = ''; 
                 }
@@ -161,7 +158,6 @@ const UsuariosPage = () => {
             setValue('telefonoAgencia', u.agencia.telefono);
             setValue('idPuerto', u.agencia.puerto?.idPuerto);
         } else if (u.rol === 'ASESOR' && u.agencia) {
-            // 🔥 Si es asesor y ya tiene agencia, poblamos el combo
             setValue('idAgencia', u.agencia.idAgencia);
         } else {
             setValue('idAgencia', '');
@@ -224,7 +220,7 @@ const UsuariosPage = () => {
             u.email.toLowerCase().includes(textoBusqueda) ||
             u.rol.toLowerCase().includes(textoBusqueda) ||
             (u.agencia?.puerto?.ciudad || '').toLowerCase().includes(textoBusqueda) ||
-            (u.agencia?.nombreAgencia || '').toLowerCase().includes(textoBusqueda) // 🔥 Permitir buscar por nombre de agencia
+            (u.agencia?.nombreAgencia || '').toLowerCase().includes(textoBusqueda)
         );
     });
 

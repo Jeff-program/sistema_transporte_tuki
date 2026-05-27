@@ -54,7 +54,7 @@ public class CajaService {
         nuevaCaja.setUsuario(usuario);
         nuevaCaja.setAgencia(usuario.getAgencia());
         nuevaCaja.setSaldoInicial(saldoInicial);
-        nuevaCaja.setObservacionesApertura(observacionesApertura); // SE GUARDA OBSERVACIÃ“N INICIAL
+        nuevaCaja.setObservacionesApertura(observacionesApertura);
         nuevaCaja.setEstado("ABIERTO");
         nuevaCaja.setFechaApertura(LocalDateTime.now());
 
@@ -81,7 +81,6 @@ public class CajaService {
 
         egreso = egresoRepository.save(egreso);
 
-        // Convertimos a DTO para mandarlo limpio al Frontend
         EgresoDTO dto = new EgresoDTO();
         dto.setIdEgreso(egreso.getIdEgreso());
         dto.setIdTurno(turno.getIdTurno());
@@ -114,7 +113,6 @@ public class CajaService {
             desgloseMetodos.put(metodo, desgloseMetodos.getOrDefault(metodo, BigDecimal.ZERO).add(monto));
         }
 
-        // 2. Anulaciones (Solo las que se devolviÃ³ efectivo en ESTE turno)
         List<Cancelacion> cancelaciones = cancelacionRepository.findByCajaTurno_IdTurno(turno.getIdTurno());
         BigDecimal totalAnulacionesEfectivo = BigDecimal.ZERO;
         for (Cancelacion c : cancelaciones) {
@@ -123,14 +121,12 @@ public class CajaService {
             }
         }
 
-        // 3. Egresos (Gastos, prÃ©stamos, cambio)
         List<Egreso> egresos = egresoRepository.findByCajaTurno_IdTurno(turno.getIdTurno());
         BigDecimal totalEgresos = BigDecimal.ZERO;
         for (Egreso e : egresos) {
             totalEgresos = totalEgresos.add(e.getMonto() != null ? e.getMonto() : BigDecimal.ZERO);
         }
 
-        // 4. Arqueo MultimÃ©todo
         Map<String, BigDecimal> esperadoPorMetodo = new HashMap<>(desgloseMetodos);
         BigDecimal esperadoEfectivo = turno.getSaldoInicial()
                 .add(desgloseMetodos.get("EFECTIVO"))
@@ -149,7 +145,7 @@ public class CajaService {
         resumen.put("saldoInicial", turno.getSaldoInicial());
         resumen.put("fechaApertura", turno.getFechaApertura().toString());
         resumen.put("totalVentas", totalVentas);
-        resumen.put("totalAnulaciones", totalAnulacionesEfectivo); // Solo las de efectivo
+        resumen.put("totalAnulaciones", totalAnulacionesEfectivo);
         resumen.put("totalEgresos", totalEgresos);
         resumen.put("esperadoPorMetodo", esperadoPorMetodo);
         resumen.put("montoEsperadoGlobal", montoEsperadoGlobal);
@@ -164,19 +160,17 @@ public class CajaService {
                 .orElseThrow(() -> new RuntimeException("No hay ninguna caja abierta para este usuario."));
 
         turno.setFechaCierre(LocalDateTime.now());
-        turno.setObservacionesCierre(observacionesCierre); // SE GUARDA OBSERVACIÃ“N FINAL
+        turno.setObservacionesCierre(observacionesCierre); 
 
         List<Pago> pagos = pagoRepository.findByVenta_CajaTurno_IdTurno(turno.getIdTurno());
 
         BigDecimal totalEfectivoVentas = BigDecimal.ZERO;
-        Map<String, BigDecimal> desglosePagos = new HashMap<>(); // ALMACENARÃ YAPE, TARJETA, TRANSFERENCIA, ETC.
+        Map<String, BigDecimal> desglosePagos = new HashMap<>(); 
 
         for (Pago p : pagos) {
             String metodo = p.getMetodoPago().toUpperCase();
-            // Acumulamos el monto por cada mÃ©todo de pago encontrado
             desglosePagos.put(metodo, desglosePagos.getOrDefault(metodo, BigDecimal.ZERO).add(p.getMonto()));
 
-            // Solo el efectivo fÃ­sico altera el cÃ¡lculo de la diferencia de caja
             if ("EFECTIVO".equals(metodo)) {
                 totalEfectivoVentas = totalEfectivoVentas.add(p.getMonto());
             }
@@ -204,7 +198,6 @@ public class CajaService {
 
         cajaTurnoRepository.save(turno);
 
-        // RETORNAMOS UN MAPA CON EL TURNO Y EL DESGLOSE DE MÃ‰TODOS DE PAGO AL FRONTEND
         Map<String, Object> respuesta = new HashMap<>();
         respuesta.put("turno", turno);
         respuesta.put("desglosePagos", desglosePagos);

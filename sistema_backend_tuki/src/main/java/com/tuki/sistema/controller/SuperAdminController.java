@@ -26,7 +26,6 @@ public class SuperAdminController {
 
     @GetMapping("/mantenimiento/estado")
     public ResponseEntity<?> getEstadoMantenimiento() {
-        // Le responde a React con un JSON: { "mantenimiento": true/false }
         return ResponseEntity.ok(Map.of("mantenimiento", sistemaService.isEnMantenimiento()));
     }
 }

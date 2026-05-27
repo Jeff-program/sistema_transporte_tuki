@@ -73,7 +73,6 @@ public class UsuarioController {
         }
         u.setRol(rolNormalizado);
 
-        // 🔥 MEJORA: ASIGNACIÓN DIRECTA DE AGENCIA A ASESORES
         if (payload.get("idAgencia") != null && !payload.get("idAgencia").toString().trim().isEmpty()) {
             Long idAgencia = Long.valueOf(payload.get("idAgencia").toString());
             u.setAgencia(agenciaRepository.findById(idAgencia).orElse(null));
@@ -117,12 +116,11 @@ public class UsuarioController {
             u.setRol(rolNormalizado);
         }
 
-        // 🔥 MEJORA: ACTUALIZACIÓN DE AGENCIA A ASESORES
         if (payload.get("idAgencia") != null && !payload.get("idAgencia").toString().trim().isEmpty()) {
             Long idAgencia = Long.valueOf(payload.get("idAgencia").toString());
             u.setAgencia(agenciaRepository.findById(idAgencia).orElse(null));
         } else if (payload.containsKey("idAgencia")) {
-            u.setAgencia(null); // Permite "desvincular" al asesor dejándolo libre si se envía idAgencia vacío
+            u.setAgencia(null);
         }
 
         if (payload.get("newPassword") != null && !payload.get("newPassword").toString().isEmpty()) {

@@ -15,21 +15,17 @@ const Caja: React.FC = () => {
     const [resumen, setResumen] = useState<any>(null);
     const [cargando, setCargando] = useState(true);
 
-    // Estado para la tabla de ventas
     const [ventasList, setVentasList] = useState<any[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
 
-    // Inputs Apertura
     const [montoInicial, setMontoInput] = useState('');
     const [obsApertura, setObsApertura] = useState('');
 
-    // Inputs Egreso
     const [modalEgreso, setModalEgreso] = useState(false);
     const [conceptoEgreso, setConceptoEgreso] = useState('');
     const [montoEgreso, setMontoEgreso] = useState('');
 
-    // Inputs Cierre y Arqueo
     const [conteosFisicos, setConteosFisicos] = useState<Record<string, string>>({
         EFECTIVO: '',
         YAPE_PLIN: '',
@@ -51,10 +47,8 @@ const Caja: React.FC = () => {
                 const dataResumen = await obtenerResumenMovimientos(userId);
                 setResumen(dataResumen);
                 
-                // Reiniciar los conteos físicos
                 setConteosFisicos({ EFECTIVO: '', YAPE_PLIN: '', TARJETA: '' });
 
-                // Cargar lista de ventas del turno y filtrar las de hoy
                 try {
                     const responseVentas = await api.get(`/ventas/mis-ventas-turno?idUsuario=${userId}`);
                     const hoy = new Date().toISOString().split('T')[0]; 
@@ -83,7 +77,6 @@ const Caja: React.FC = () => {
 
     useEffect(() => { if (userId) verificarEstadoTurno(); }, [userId]);
 
-    // 🟦 LÓGICA DE PAGINACIÓN DE VENTAS
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentVentas = ventasList.slice(indexOfFirstItem, indexOfLastItem);
@@ -100,12 +93,10 @@ const Caja: React.FC = () => {
         }
     };
 
-    // 🟦 MONTOS ESPERADOS (Unidos Yape y Plin)
     const esperadoEfectivo = Number(resumen?.esperadoPorMetodo?.EFECTIVO || 0);
     const esperadoYapePlin = Number(resumen?.esperadoPorMetodo?.YAPE || 0) + Number(resumen?.esperadoPorMetodo?.PLIN || 0);
     const esperadoTarjeta = Number(resumen?.esperadoPorMetodo?.TARJETA || 0);
 
-    // 🟦 1. APERTURA
     const handleAbrirCaja = async () => {
         if (!montoInicial || isNaN(Number(montoInicial)) || Number(montoInicial) < 0) return notificarError("Ingrese un saldo válido mayor o igual a cero.");
         const tId = notificarCarga("Abriendo caja...");
@@ -120,7 +111,6 @@ const Caja: React.FC = () => {
         }
     };
 
-    // 🟦 2. REGISTRAR EGRESO
     const handleRegistrarEgreso = async () => {
         if (!conceptoEgreso || !montoEgreso || Number(montoEgreso) <= 0) return notificarError("Ingrese un monto válido (mayor a cero).");
         const tId = notificarCarga("Registrando egreso...");
@@ -137,7 +127,6 @@ const Caja: React.FC = () => {
         }
     };
 
-    // 🟦 CÁLCULOS DE ARQUEO (Bloquea negativos)
     const handleConteoChange = (metodo: string, valor: string) => {
         if (valor === '') {
             setConteosFisicos(prev => ({ ...prev, [metodo]: '' }));
@@ -166,7 +155,6 @@ const Caja: React.FC = () => {
         notificarExito("Arqueo guardado. Proceda al Cierre de Caja.");
     };
 
-    // 🟦 4. CIERRE
     const handleCerrarCajaDefinitivo = async () => {
         const tId = notificarCarga("Cerrando turno contable...");
         try {
@@ -476,7 +464,7 @@ const Caja: React.FC = () => {
                 )}
             </div>
 
-            {/* 🔥 TICKET IMPRIMIBLE PARA IMPRESORA TÉRMICA (Invisible en pantalla normal) 🔥 */}
+            {/*TICKET IMPRIMIBLE PARA IMPRESORA TÉRMICA (Invisible en pantalla normal) */}
             {cajaActiva && arqueoGuardado && (
                 <div id="ticket-arqueo" className="hidden print:block">
                     <div style={{ textAlign: 'center', marginBottom: '10px' }}>

@@ -34,7 +34,7 @@ public class ReporteController {
     @Autowired private ViajeRepository viajeRepository;
     @Autowired private CajaTurnoRepository cajaTurnoRepository;
     @Autowired private VentaRepository ventaRepository;
-    @Autowired private CancelacionRepository cancelacionRepository; // Añadir este
+    @Autowired private CancelacionRepository cancelacionRepository;
 
     @GetMapping("/manifiesto/{idViaje}/excel")
     public ResponseEntity<InputStreamResource> descargarExcel(@PathVariable Long idViaje) {

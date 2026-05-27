@@ -35,10 +35,8 @@ public class CajaController {
         try {
             CajaTurno caja = cajaService.obtenerCajaActiva(idUsuarioAutenticado());
             if (caja != null) {
-                // 🔥 CAMBIO CLAVE: Devolvemos la caja directamente sin envolverla en "Map.of"
                 return ResponseEntity.ok(caja);
             }
-            // Si es null, enviamos un estado cerrado para que React lo entienda
             return ResponseEntity.ok(Map.of("estado", "INACTIVO"));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -56,7 +54,6 @@ public class CajaController {
                 }
             }
             
-            // Extraer la observación si viene desde el frontend
             String obsApertura = payload.containsKey("observacionesApertura") && payload.get("observacionesApertura") != null ? payload.get("observacionesApertura").toString() : null;
 
             return ResponseEntity.ok(cajaService.abrirCaja(idUsuarioAutenticado(), montoInicial, obsApertura));
@@ -77,7 +74,6 @@ public class CajaController {
             if (montoDeclaradoEfectivo != null && !montoDeclaradoEfectivo.trim().isEmpty()) {
                 montoEfectivo = new BigDecimal(montoDeclaradoEfectivo.trim());
             }
-            // Retorna todo el arqueo multimetodo al Frontend
             return ResponseEntity.ok(cajaService.cerrarCaja(idUsuarioAutenticado(), montoEfectivo, observacionesCierre));
         } catch (NumberFormatException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "El monto ingresado no es válido."));

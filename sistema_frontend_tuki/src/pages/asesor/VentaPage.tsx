@@ -104,7 +104,6 @@ const VentaPage = () => {
     const [mostrarModalPago, setMostrarModalPago] = useState(false);
     const [ticketData, setTicketData] = useState<{ venta: any, pago: any } | null>(null);
 
-    // 🔥 NUEVO ESTADO: Guardará el ID de la caja cuando consultemos al backend
     const [idTurnoActivo, setIdTurnoActivo] = useState<number | null>(null);
 
     const {
@@ -320,20 +319,17 @@ const VentaPage = () => {
         }
     };
 
-    // 🔥 MODIFICACIÓN IMPORTANTE: Consultamos el backend en vivo
     const onValidarFormulario = async () => {
         const user = getCurrentUser();
         const userId = user?.idUsuario || user?.id;
 
         try {
-            // Preguntamos al servidor si hay una caja abierta (adiós localStorage)
             const res = await obtenerCajaActiva(userId);
             
             if (!res || res.estado !== 'ABIERTO') {
                 return notificarError("Debe aperturar su caja en el módulo de 'Control de Caja' antes de vender.");
             }
             
-            // Guardamos el ID real de la caja para enviarlo al procesar
             setIdTurnoActivo(res.idTurno);
 
             const haySinAsiento = pasajerosWatch.some(p => p.numeroAsiento === '');
@@ -368,7 +364,7 @@ const VentaPage = () => {
 
             const payload = {
                 idViaje: viajeSeleccionado.idViaje,
-                idTurno: idTurnoActivo, // 🔥 Usamos la variable directa validada
+                idTurno: idTurnoActivo,
                 tipoComprobante: datosPago.tipoComprobante,
                 documentoCliente: datosPago.documentoCliente,
                 razonSocialNombre: datosPago.razonSocialNombre?.toUpperCase(),

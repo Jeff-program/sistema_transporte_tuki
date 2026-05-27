@@ -54,11 +54,9 @@ public class AgenciaController {
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizar(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         try {
-            // 1. Buscamos la agencia que ya existe
             Agencia agencia = agenciaRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Agencia no encontrada"));
 
-            // 2. Actualizamos textos
             if (payload.get("nombreAgencia") != null) {
                 agencia.setNombreAgencia(payload.get("nombreAgencia").toString());
             }
@@ -69,14 +67,11 @@ public class AgenciaController {
                 agencia.setTelefono(payload.get("telefono").toString());
             }
 
-            // 🔥 3. LA SOLUCIÓN DEL PUERTO 🔥
-            // Caso A: Si React envía el ID suelto (ej. idPuerto: 5)
             if (payload.get("idPuerto") != null && !payload.get("idPuerto").toString().trim().isEmpty()) {
                 Long idPuerto = Long.valueOf(payload.get("idPuerto").toString());
                 agencia.setPuerto(puertoRepository.findById(idPuerto)
                     .orElseThrow(() -> new RuntimeException("El puerto seleccionado no existe.")));
             } 
-            // Caso B: Si React lo envía como objeto anidado (ej. puerto: { idPuerto: 5 })
             else if (payload.get("puerto") != null) {
                 Map<String, Object> puertoData = (Map<String, Object>) payload.get("puerto");
                 if (puertoData.get("idPuerto") != null) {
@@ -85,8 +80,6 @@ public class AgenciaController {
                         .orElseThrow(() -> new RuntimeException("El puerto seleccionado no existe.")));
                 }
             }
-
-            // 4. Guardamos
             return ResponseEntity.ok(agenciaRepository.save(agencia));
             
         } catch (Exception e) {

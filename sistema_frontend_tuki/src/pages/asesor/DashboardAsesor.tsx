@@ -44,7 +44,6 @@ const DashboardAsesor = () => {
     
     const [horaPeru, setHoraPeru] = useState(new Date());
 
-    // 🔥 ESTADOS PARA LA PAGINACIÓN (5 filas por página) 🔥
     const [paginaActual, setPaginaActual] = useState(1);
     const salidasPorPagina = 5;
 
@@ -250,7 +249,6 @@ const DashboardAsesor = () => {
 
     useEffect(() => { cargarDashboard(); }, []);
 
-    // 🔥 LÓGICA DE PAGINACIÓN CALCULADA 🔥
     const indexUltimaSalida = paginaActual * salidasPorPagina;
     const indexPrimeraSalida = indexUltimaSalida - salidasPorPagina;
     const salidasPaginadas = salidas.slice(indexPrimeraSalida, indexUltimaSalida);

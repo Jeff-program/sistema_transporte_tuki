@@ -22,7 +22,7 @@ public class VentaController {
     private VentaService ventaService;
 
     @Autowired
-    private UsuarioRepository usuarioRepository; // <-- INYECTAMOS EL REPOSITORIO
+    private UsuarioRepository usuarioRepository;
 
     @PostMapping("/grupal")
     public ResponseEntity<?> registrarVentaGrupal(@RequestBody VentaDTO dto) {
@@ -88,7 +88,6 @@ public class VentaController {
     @GetMapping("/mis-ventas-turno")
     public ResponseEntity<?> obtenerVentasDelTurnoActual(@RequestParam Long idUsuario) {
         try {
-            // El servicio ahora retorna una lista limpia y sin bucles infinitos
             return ResponseEntity.ok(ventaService.obtenerVentasDelTurnoActual(idUsuario));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
