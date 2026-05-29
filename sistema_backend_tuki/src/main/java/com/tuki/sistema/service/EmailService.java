@@ -1,15 +1,17 @@
 package com.tuki.sistema.service;
 
 import jakarta.mail.internet.MimeMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 @Service
 public class EmailService {
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     @Autowired
     private JavaMailSender mailSender;
@@ -104,7 +106,7 @@ public class EmailService {
             mailSender.send(message);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("No se pudo enviar el correo de recuperacion a {}", destinatario, e);
             return false;
         }
     }

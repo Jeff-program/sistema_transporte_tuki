@@ -1,6 +1,7 @@
 package com.tuki.sistema.controller;
 
-import com.tuki.sistema.repository.PasajeroRepository;
+import com.tuki.sistema.entity.Pasajero;
+import com.tuki.sistema.service.PasajeroService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,27 +11,19 @@ import org.springframework.web.bind.annotation.*;
 public class PasajeroController {
 
     @Autowired
-    private PasajeroRepository pasajeroRepository;
+    private PasajeroService pasajeroService;
 
     @GetMapping("/documento/{numero}")
     public ResponseEntity<?> buscarPorDocumento(@PathVariable String numero) {
-        return pasajeroRepository.findByNumeroDocumento(numero)
+        return pasajeroService.buscarPorDocumento(numero)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/documento/{numero}")
-    public ResponseEntity<?> actualizarPasajero(@PathVariable String numero, @RequestBody com.tuki.sistema.entity.Pasajero datos) {
-        return pasajeroRepository.findByNumeroDocumento(numero)
-                .map(p -> {
-                    p.setNombres(datos.getNombres());
-                    p.setApellidoPaterno(datos.getApellidoPaterno());
-                    p.setApellidoMaterno(datos.getApellidoMaterno());
-                    p.setTelefono(datos.getTelefono());
-                    p.setFechaNacimiento(datos.getFechaNacimiento());
-                    p.setNacionalidad(datos.getNacionalidad());
-                    return ResponseEntity.ok(pasajeroRepository.save(p));
-                })
+    public ResponseEntity<?> actualizarPasajero(@PathVariable String numero, @RequestBody Pasajero datos) {
+        return pasajeroService.actualizarPorDocumento(numero, datos)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 }

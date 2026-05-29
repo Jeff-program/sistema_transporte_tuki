@@ -2,20 +2,22 @@ package com.tuki.sistema.service;
 
 import com.tuki.sistema.entity.Comprobante;
 import com.tuki.sistema.entity.Correlativo;
-import com.tuki.sistema.entity.Venta;
 import com.tuki.sistema.entity.Pago;
+import com.tuki.sistema.entity.Venta;
 import com.tuki.sistema.repository.ComprobanteRepository;
 import com.tuki.sistema.repository.CorrelativoRepository;
-
-import java.util.List;
-import java.util.UUID;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.UUID;
+
 @Service
 public class FacturacionService {
+    private static final Logger log = LoggerFactory.getLogger(FacturacionService.class);
 
     @Autowired private ComprobanteRepository comprobanteRepository;
     @Autowired private CorrelativoRepository correlativoRepository;
@@ -44,17 +46,9 @@ public class FacturacionService {
             String documentoCliente, 
             String razonSocial) {
 
-        System.out.println("\n==========================================================");
-        System.out.println(">>> 🟢 INICIANDO FACTURACIÓN ELECTRÓNICA (SUNAT/OSE) 🟢 <<<");
-        System.out.println("==========================================================");
-        System.out.println(">>> Preparando Payload JSON encriptado...");
-        System.out.println("  - Operación: Emisión de Comprobante");
-        System.out.println("  - Moneda: PEN (Soles) | Monto Total: S/ " + venta.getTotal());
-        System.out.println("  - Cliente Doc: " + (documentoCliente != null ? documentoCliente : "S/D"));
-        System.out.println("  - Denominación: " + (razonSocial != null ? razonSocial : "CLIENTE VARIOS"));
-        
-        System.out.println(">>> Estableciendo conexión segura TLS con servidor SUNAT...");
-        try { Thread.sleep(500); } catch (InterruptedException e) {} 
+        log.info("Iniciando facturacion electronica. Operacion=emision, moneda=PEN, total={}", venta.getTotal());
+        log.debug("Cliente Doc: {}; Denominacion: {}", documentoCliente != null ? documentoCliente : "S/D", razonSocial != null ? razonSocial : "CLIENTE VARIOS");
+        pausarSimulacion(500);
 
         String tipo = tipoComprobante != null ? tipoComprobante.toUpperCase() : "BOLETA";
         String serieGenerada = tipo.equals("FACTURA") ? "F001" : tipo.equals("BOLETA") ? "B001" : "T001";
@@ -65,10 +59,7 @@ public class FacturacionService {
         String xmlHashSimulado = UUID.randomUUID().toString().substring(0, 20).toUpperCase() + "==";
         String urlPdfGenerado = "https://tuki-transporte.s3.amazonaws.com/comprobantes/" + serieGenerada + "-" + correlativoStr + ".pdf";
 
-        System.out.println(">>> ✉️  Respuesta del Servidor 200 OK");
-        System.out.println(">>> ¡ÉXITO! " + tipo + " " + serieGenerada + "-" + correlativoStr + " procesada.");
-        System.out.println(">>> Hash CDR: " + xmlHashSimulado);
-        System.out.println("==========================================================\n");
+        log.info("{} {}-{} procesada correctamente. Hash CDR: {}", tipo, serieGenerada, correlativoStr, xmlHashSimulado);
 
         Comprobante comprobante = new Comprobante();
         comprobante.setVenta(venta);
@@ -92,10 +83,7 @@ public class FacturacionService {
 
     @Transactional
     public Comprobante generarNotaCredito(Venta venta, String motivo) {
-        
-        System.out.println("\n==========================================================");
-        System.out.println(">>> 🔴 GENERANDO NOTA DE CRÉDITO ELECTRÓNICA (SUNAT) 🔴 <<<");
-        System.out.println("==========================================================");
+        log.info("Generando nota de credito electronica");
         
         List<Comprobante> comprobantes = comprobanteRepository.findByVenta_IdVenta(venta.getIdVenta());
         if (comprobantes.isEmpty()) return null;
@@ -107,10 +95,9 @@ public class FacturacionService {
             
         if (original == null) return null;
 
-        System.out.println(">>> Documento a afectar: " + original.getSerie() + "-" + String.format("%06d", original.getNumeroCorrelativo()));
-        System.out.println(">>> Motivo de anulación: " + motivo);
-        System.out.println(">>> Enviando petición de anulación a OSE/SUNAT...");
-        try { Thread.sleep(400); } catch (InterruptedException e) {} 
+        log.info("Documento a afectar: {}-{}", original.getSerie(), String.format("%06d", original.getNumeroCorrelativo()));
+        log.debug("Motivo de anulacion: {}", motivo);
+        pausarSimulacion(400);
 
         String serieNC = "FACTURA".equalsIgnoreCase(original.getTipoComprobante()) ? "FC01" : "BC01";
         
@@ -137,11 +124,16 @@ public class FacturacionService {
         original.setEstadoSunat("ANULADO");
         comprobanteRepository.save(original);
         
-        System.out.println(">>> ✉️  Respuesta del Servidor 200 OK");
-        System.out.println(">>> ¡ÉXITO! NOTA DE CRÉDITO EMITIDA: " + serieNC + "-" + correlativoStr);
-        System.out.println(">>> Hash de Baja: " + xmlHashSimulado);
-        System.out.println("==========================================================\n");
-        
+        log.info("Nota de credito emitida: {}-{}. Hash de baja: {}", serieNC, correlativoStr, xmlHashSimulado);
         return notaCredito;
+    }
+
+    private void pausarSimulacion(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("Simulacion de facturacion interrumpida", e);
+        }
     }
 }

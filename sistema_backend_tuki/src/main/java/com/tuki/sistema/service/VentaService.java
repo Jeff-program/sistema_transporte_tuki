@@ -1,5 +1,6 @@
 package com.tuki.sistema.service;
 
+import com.tuki.sistema.dto.MensajeResponse;
 import com.tuki.sistema.dto.PasajeDTO;
 import com.tuki.sistema.dto.VentaDTO;
 import com.tuki.sistema.entity.*;
@@ -149,7 +150,7 @@ public class VentaService {
                 int ordenDestinoVenta = getOrdenEscala(viaje, vda.getPuertoDestino().getIdPuerto());
 
                 if (tramosSeCruzan(ordenOrigenVenta, ordenDestinoVenta, ordenOrigenDeseado, ordenDestinoDeseado)) {
-                    throw new RuntimeException("El asiento " + asiento.getNumero() + " ya estÃ¡ ocupado para el tramo seleccionado.");
+                    throw new RuntimeException("El asiento " + asiento.getNumero() + " ya está ocupado para el tramo seleccionado.");
                 }
             }
 
@@ -445,8 +446,14 @@ public class VentaService {
             facturacionService.generarNotaCredito(d.getVenta(), cancelacion.getMotivo());
 
         } catch (NumberFormatException e) {
-            throw new RuntimeException("El identificador del boleto enviado no es vÃ¡lido.");
+            throw new RuntimeException("El identificador del boleto enviado no es valido.");
         }
+    }
+
+    @Transactional
+    public MensajeResponse anularVentaConMensaje(Long idViaje, String identificador, Usuario usuarioQueAnula) {
+        anularVenta(idViaje, identificador, usuarioQueAnula);
+        return new MensajeResponse("Venta anulada correctamente");
     }
 
     @Transactional(readOnly = true)

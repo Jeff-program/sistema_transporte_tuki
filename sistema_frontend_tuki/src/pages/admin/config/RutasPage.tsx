@@ -20,6 +20,17 @@ import {
     confirmarAccion 
 } from '../../../services/feedbackService';
 
+const obtenerNombreRioRuta = (ruta: any, textoFallback = 'General') => {
+    const origenEsPrincipal = ruta?.origen?.esPrincipal === true;
+    const destinoRio = ruta?.destino?.rio?.nombreRio;
+
+    if (origenEsPrincipal && destinoRio) {
+        return destinoRio;
+    }
+
+    return ruta?.origen?.rio?.nombreRio || destinoRio || textoFallback;
+};
+
 const RouteDetailDrawer = ({ ruta, onClose, isOpen }: { ruta: any, onClose: () => void, isOpen: boolean }) => {
     const [escalas, setEscalas] = useState<any[]>([]);
     const [tarifas, setTarifas] = useState<any[]>([]);
@@ -115,7 +126,7 @@ const RouteDetailDrawer = ({ ruta, onClose, isOpen }: { ruta: any, onClose: () =
                             {ruta.estado === 'ACTIVO' ? 'RUTA ACTIVA' : 'RUTA INACTIVA'}
                         </span>
                         <div className="text-xs text-blue-300 mt-2 flex items-center gap-1 font-medium">
-                            <Waves size={12}/> {ruta.origen?.rio?.nombreRio || 'Sin río asignado'}
+                            <Waves size={12}/> {obtenerNombreRioRuta(ruta, 'Sin río asignado')}
                         </div>
                     </div>
                     <button onClick={onClose} className="text-white/70 hover:text-white transition-colors bg-white/10 p-1.5 rounded-full"><X size={20} /></button>
@@ -400,9 +411,10 @@ const RutasPage = () => {
         handleCerrarModal();
         cargarDatos();
 
-    } catch (e) {
+    } catch (e: any) {
         cerrarNotificacion(toastId);
-        notificarError('Error al guardar.');
+        const mensaje = e.response?.data?.mensaje || e.response?.data || 'Error al guardar.';
+        notificarError(String(mensaje));
     }
   };
 
@@ -527,7 +539,7 @@ const RutasPage = () => {
       r.nombreRuta.toLowerCase().includes(busqueda.toLowerCase()) ||
       r.origen?.ciudad.toLowerCase().includes(busqueda.toLowerCase()) ||
       r.destino?.ciudad.toLowerCase().includes(busqueda.toLowerCase()) ||
-      (r.origen?.rio?.nombreRio || '').toLowerCase().includes(busqueda.toLowerCase())
+      obtenerNombreRioRuta(r, '').toLowerCase().includes(busqueda.toLowerCase())
   );
 
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -623,7 +635,7 @@ const RutasPage = () => {
 
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 w-fit px-2 py-1 rounded-md">
-                                            <Waves size={12}/> {r.origen?.rio?.nombreRio || 'General'}
+                                            <Waves size={12}/> {obtenerNombreRioRuta(r)}
                                         </div>
                                     </td>
                                     

@@ -1,6 +1,9 @@
 package com.tuki.sistema.service;
 
+import com.tuki.sistema.dto.AbrirCajaRequest;
+import com.tuki.sistema.dto.CerrarCajaRequest;
 import com.tuki.sistema.dto.EgresoDTO;
+import com.tuki.sistema.dto.EgresoRequest;
 import com.tuki.sistema.entity.CajaTurno;
 import com.tuki.sistema.entity.Pago;
 import com.tuki.sistema.entity.Usuario;
@@ -36,6 +39,20 @@ public class CajaService {
         return cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuario, "ABIERTO").orElse(null);
     }
 
+    public Object obtenerCajaActivaRespuesta(Long idUsuario) {
+        CajaTurno caja = obtenerCajaActiva(idUsuario);
+        return caja != null ? caja : Map.of("estado", "INACTIVO");
+    }
+
+    @Transactional
+    public CajaTurno abrirCaja(Long idUsuario, AbrirCajaRequest request) {
+        BigDecimal montoInicial = request != null && request.getMontoInicial() != null
+                ? request.getMontoInicial()
+                : BigDecimal.ZERO;
+        String observaciones = request != null ? request.getObservacionesApertura() : null;
+        return abrirCaja(idUsuario, montoInicial, observaciones);
+    }
+
     @Transactional
     public CajaTurno abrirCaja(Long idUsuario, BigDecimal montoInicial, String observacionesApertura) {
         BigDecimal saldoInicial = montoInicial != null ? montoInicial : BigDecimal.ZERO;
@@ -47,8 +64,12 @@ public class CajaService {
             throw new RuntimeException("Ya tienes un turno de caja abierto. Cierra el anterior primero.");
         }
 
-        Usuario usuario = usuarioRepository.findById(idUsuario)
+        Usuario usuario = usuarioRepository.findByIdWithLock(idUsuario)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado en la base de datos."));
+
+        if (obtenerCajaActiva(idUsuario) != null) {
+            throw new RuntimeException("Ya tienes un turno de caja abierto. Cierra el anterior primero.");
+        }
 
         CajaTurno nuevaCaja = new CajaTurno();
         nuevaCaja.setUsuario(usuario);
@@ -89,6 +110,13 @@ public class CajaService {
         dto.setFechaEgreso(egreso.getFechaEgreso());
 
         return dto;
+    }
+
+    @Transactional
+    public EgresoDTO registrarEgreso(Long idUsuario, EgresoRequest request) {
+        String concepto = request != null ? request.getConcepto() : null;
+        BigDecimal monto = request != null ? request.getMonto() : null;
+        return registrarEgreso(idUsuario, concepto, monto);
     }
 
     @Transactional(readOnly = true)
@@ -203,5 +231,18 @@ public class CajaService {
         respuesta.put("desglosePagos", desglosePagos);
 
         return respuesta;
+    }
+
+    @Transactional
+    public Map<String, Object> cerrarCaja(Long idUsuario, BigDecimal montoDeclaradoEfectivo, String observacionesCierre, CerrarCajaRequest request) {
+        BigDecimal montoEfectivo = montoDeclaradoEfectivo != null
+                ? montoDeclaradoEfectivo
+                : request != null && request.getMontoDeclaradoEfectivo() != null
+                    ? request.getMontoDeclaradoEfectivo()
+                    : BigDecimal.ZERO;
+        String observaciones = observacionesCierre != null
+                ? observacionesCierre
+                : request != null ? request.getObservacionesCierre() : null;
+        return cerrarCaja(idUsuario, montoEfectivo, observaciones);
     }
 }

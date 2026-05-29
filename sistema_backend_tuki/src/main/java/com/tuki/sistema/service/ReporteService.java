@@ -1,7 +1,15 @@
 package com.tuki.sistema.service;
 
+import com.tuki.sistema.dto.AuditoriaCajaDTO;
+import com.tuki.sistema.dto.ReporteArchivo;
+import com.tuki.sistema.entity.CajaTurno;
+import com.tuki.sistema.entity.Cancelacion;
+import com.tuki.sistema.entity.Venta;
 import com.tuki.sistema.entity.VentaDetalle;
 import com.tuki.sistema.entity.Viaje;
+import com.tuki.sistema.repository.CajaTurnoRepository;
+import com.tuki.sistema.repository.CancelacionRepository;
+import com.tuki.sistema.repository.VentaRepository;
 import com.tuki.sistema.repository.VentaDetalleRepository;
 import com.tuki.sistema.repository.ViajeRepository;
 import org.apache.poi.ss.usermodel.*;
@@ -20,7 +28,13 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ReporteService {
@@ -30,6 +44,23 @@ public class ReporteService {
 
     @Autowired
     private ViajeRepository viajeRepository;
+
+    @Autowired
+    private CajaTurnoRepository cajaTurnoRepository;
+
+    @Autowired
+    private VentaRepository ventaRepository;
+
+    @Autowired
+    private CancelacionRepository cancelacionRepository;
+
+    public ReporteArchivo generarExcelManifiestoArchivo(Long idViaje) {
+        return new ReporteArchivo(generarExcelManifiesto(idViaje), nombreArchivoManifiesto(idViaje, "xlsx"));
+    }
+
+    public ReporteArchivo generarPdfManifiestoArchivo(Long idViaje) {
+        return new ReporteArchivo(generarPdfManifiesto(idViaje), nombreArchivoManifiesto(idViaje, "pdf"));
+    }
 
     public ByteArrayInputStream generarExcelManifiesto(Long idViaje) {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
@@ -105,5 +136,85 @@ public class ReporteService {
         } catch (Exception e) {
             throw new RuntimeException("Error generando PDF", e);
         }
+    }
+
+    public List<AuditoriaCajaDTO> obtenerAuditoriaGerencial(LocalDateTime inicio, LocalDateTime fin) {
+        LocalDateTime inicioConsulta = inicio != null ? inicio : LocalDateTime.now().minusDays(30);
+        LocalDateTime finConsulta = fin != null ? fin : LocalDateTime.now();
+        return cajaTurnoRepository.obtenerReporteAuditoria(inicioConsulta, finConsulta);
+    }
+
+    public List<Map<String, Object>> obtenerExtractoMovimientos() {
+        List<Map<String, Object>> movimientos = new ArrayList<>();
+        agregarMovimientosCaja(movimientos);
+        agregarMovimientosVentas(movimientos);
+        agregarMovimientosCancelaciones(movimientos);
+        movimientos.sort(this::compararMovimientoPorHoraDesc);
+        return movimientos;
+    }
+
+    private String nombreArchivoManifiesto(Long idViaje, String extension) {
+        Viaje viaje = viajeRepository.findById(idViaje).orElseThrow();
+        String fecha = viaje.getFechaSalida().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        String nombreNave = viaje.getEmbarcacion().getNombre().replace(" ", "_");
+        return "Manifiesto_" + nombreNave + "_" + fecha + "." + extension;
+    }
+
+    private void agregarMovimientosCaja(List<Map<String, Object>> movimientos) {
+        for (CajaTurno turno : cajaTurnoRepository.findAll()) {
+            String asesor = turno.getUsuario() != null ? turno.getUsuario().getNombreCompleto() : "S/N";
+            String agencia = turno.getAgencia() != null ? turno.getAgencia().getNombreAgencia() : "Sede Principal";
+
+            movimientos.add(movimiento("APERTURA", turno.getSaldoInicial(), turno.getFechaApertura(), asesor, agencia));
+
+            if (turno.getFechaCierre() != null) {
+                BigDecimal diferencia = turno.getDiferencia() != null ? turno.getDiferencia() : BigDecimal.ZERO;
+                movimientos.add(movimiento("CIERRE", turno.getSaldoFinal().add(diferencia), turno.getFechaCierre(), asesor, agencia));
+            }
+        }
+    }
+
+    private void agregarMovimientosVentas(List<Map<String, Object>> movimientos) {
+        for (Venta venta : ventaRepository.findAll()) {
+            if ("COMPLETADA".equals(venta.getEstado())) {
+                String asesor = venta.getUsuarioVendedor() != null ? venta.getUsuarioVendedor().getNombreCompleto() : "S/N";
+                String agencia = venta.getUsuarioVendedor() != null && venta.getUsuarioVendedor().getAgencia() != null
+                        ? venta.getUsuarioVendedor().getAgencia().getNombreAgencia()
+                        : "Sede Principal";
+                movimientos.add(movimiento("VENTA", venta.getTotal(), venta.getFechaVenta(), asesor, agencia));
+            }
+        }
+    }
+
+    private void agregarMovimientosCancelaciones(List<Map<String, Object>> movimientos) {
+        for (Cancelacion cancelacion : cancelacionRepository.findAll()) {
+            String asesor = cancelacion.getUsuarioAutoriza() != null ? cancelacion.getUsuarioAutoriza().getNombreCompleto() : "S/N";
+            String agencia = cancelacion.getUsuarioAutoriza() != null && cancelacion.getUsuarioAutoriza().getAgencia() != null
+                    ? cancelacion.getUsuarioAutoriza().getAgencia().getNombreAgencia()
+                    : "Sede Principal";
+            movimientos.add(movimiento("DEVOLUCION", cancelacion.getMontoDevuelto().negate(), cancelacion.getFechaCancelacion(), asesor, agencia));
+        }
+    }
+
+    private Map<String, Object> movimiento(String tipo, Object monto, LocalDateTime hora, String usuario, String agencia) {
+        Map<String, Object> movimiento = new HashMap<>();
+        movimiento.put("tipo", tipo);
+        movimiento.put("monto", monto);
+        movimiento.put("hora", hora);
+        movimiento.put("usuario", usuario);
+        movimiento.put("agencia", agencia);
+        return movimiento;
+    }
+
+    private int compararMovimientoPorHoraDesc(Map<String, Object> primero, Map<String, Object> segundo) {
+        LocalDateTime horaPrimero = (LocalDateTime) primero.get("hora");
+        LocalDateTime horaSegundo = (LocalDateTime) segundo.get("hora");
+        if (horaPrimero == null) {
+            return 1;
+        }
+        if (horaSegundo == null) {
+            return -1;
+        }
+        return horaSegundo.compareTo(horaPrimero);
     }
 }

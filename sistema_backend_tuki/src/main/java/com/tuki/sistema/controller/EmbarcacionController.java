@@ -7,8 +7,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
-
 @RestController
 @RequestMapping("/api/embarcaciones")
 public class EmbarcacionController {
@@ -39,7 +37,6 @@ public class EmbarcacionController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminar(@PathVariable Long id) {
-        service.eliminar(id);
-        return ResponseEntity.ok(Map.of("mensaje", "Nave eliminada correctamente"));
+        return ResponseEntity.ok(service.eliminarConMensaje(id));
     }
 }

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import MainLayout from '../../layouts/MainLayout';
 import { 
     Users, UserPlus, Search, Edit, Lock, Shield, 
-    ToggleLeft, ToggleRight, Save, Mail, ChevronLeft, ChevronRight, List, AlertCircle, Building2, MapPin, Phone,
+    ToggleLeft, ToggleRight, Save, Mail, ChevronLeft, ChevronRight, List, AlertCircle, Building2, Phone,
     Loader,
     IdCardIcon,
     Eye, EyeOff,
@@ -340,9 +340,14 @@ const UsuariosPage = () => {
                                                         </span>
                                                     </div>
                                                 ) : u.rol === 'ASESOR' ? (
-                                                    <span className="flex items-center justify-center gap-1 text-gray-400">
-                                                        <MapPin size={12} /> Sin asignar
-                                                    </span>
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="flex items-center justify-center gap-1 text-[#2A3F54]">
+                                                            <Building2 size={12} className="text-[#1ABB9C]" /> Sede Principal
+                                                        </span>
+                                                        <span className="text-[10px] text-gray-400 font-normal">
+                                                            (Iquitos)
+                                                        </span>
+                                                    </div>
                                                 ) : (
                                                     <span className="text-gray-300">—</span>
                                                 )}

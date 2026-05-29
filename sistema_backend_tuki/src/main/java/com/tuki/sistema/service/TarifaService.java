@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -33,6 +34,10 @@ public class TarifaService {
                 .orElse(BigDecimal.ZERO);
     }
 
+    public Map<String, BigDecimal> consultarPrecioRespuesta(Long idRuta, Long idOrigen, Long idDestino) {
+        return Map.of("precio", consultarPrecio(idRuta, idOrigen, idDestino));
+    }
+
     public TarifaDTO guardar(TarifaDTO dto) {
         Optional<Tarifa> existente = tarifaRepository.findTopByRuta_IdRutaAndOrigen_IdPuertoAndDestino_IdPuertoOrderByIdTarifaDesc(
                 dto.getIdRuta(), dto.getIdPuertoOrigen(), dto.getIdPuertoDestino()
@@ -48,6 +53,10 @@ public class TarifaService {
         tarifa.setPrecio(dto.getPrecio());
 
         return convertirADTO(tarifaRepository.save(tarifa));
+    }
+
+    public void eliminar(Long id) {
+        tarifaRepository.deleteById(id);
     }
 
     private TarifaDTO convertirADTO(Tarifa t) {

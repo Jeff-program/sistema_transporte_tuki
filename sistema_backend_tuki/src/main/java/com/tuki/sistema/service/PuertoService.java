@@ -1,5 +1,6 @@
 package com.tuki.sistema.service;
 
+import com.tuki.sistema.dto.MensajeResponse;
 import com.tuki.sistema.entity.Puerto;
 import com.tuki.sistema.entity.Agencia;
 import com.tuki.sistema.entity.Usuario;
@@ -33,6 +34,10 @@ public class PuertoService {
 
     public List<Puerto> listarActivos() {
         return repository.findByEstado("ACTIVO");
+    }
+
+    public List<Puerto> listarActivosPorRioOPrincipal(Long idRio) {
+        return repository.findActivosByRioOrPrincipal(idRio, "ACTIVO");
     }
 
     public Puerto guardar(Puerto puerto) {
@@ -75,5 +80,10 @@ public class PuertoService {
         Puerto p = repository.findById(id).orElseThrow();
         p.setEstado("ELIMINADO");
         repository.save(p);
+    }
+
+    public MensajeResponse eliminarConMensaje(Long id) {
+        eliminar(id);
+        return new MensajeResponse("Puerto eliminado");
     }
 }

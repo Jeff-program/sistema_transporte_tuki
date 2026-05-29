@@ -1,5 +1,6 @@
 package com.tuki.sistema.service;
 
+import com.tuki.sistema.dto.MensajeResponse;
 import com.tuki.sistema.entity.Embarcacion;
 import com.tuki.sistema.repository.EmbarcacionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,5 +75,10 @@ public class EmbarcacionService {
         e.setNombre(e.getNombre() + " (BAJA)");
         
         repository.save(e);
+    }
+
+    public MensajeResponse eliminarConMensaje(Long id) {
+        eliminar(id);
+        return new MensajeResponse("Nave eliminada correctamente");
     }
 }

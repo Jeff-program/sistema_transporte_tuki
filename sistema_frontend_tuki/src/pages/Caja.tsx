@@ -177,7 +177,7 @@ const Caja: React.FC = () => {
 
     return (
         <MainLayout>
-            {/* 🔥 ESTILOS PARA LA IMPRESORA TÉRMICA 🔥 */}
+            {/* ESTILOS PARA LA IMPRESORA TÉRMICA */}
             <style>
                 {`
                     @media print {
@@ -198,17 +198,29 @@ const Caja: React.FC = () => {
                 `}
             </style>
 
-            <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto print:hidden">
-                <div className="flex justify-between border-b pb-4">
-                    <h1 className="text-2xl font-black text-[#2A3F54]">Gestión y Arqueo de Caja</h1>
-                    <span className={`px-4 py-1 text-xs font-bold rounded-full flex items-center gap-2 ${cajaActiva ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                        <div className={`w-2 h-2 rounded-full ${cajaActiva ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
-                        {cajaActiva ? `TURNO ABIERTO #${cajaActiva.idTurno}` : 'CAJA CERRADA'}
-                    </span>
+            <div className="max-w-7xl mx-auto pb-3 relative">
+                
+                {/* HEADER UI */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-in slide-in-from-top-4 print:hidden">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-50 rounded-xl text-[#1ABB9C]">
+                            <Wallet size={28} />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-bold text-[#2A3F54]">Gestión de Caja</h1>
+                            <p className="text-sm text-gray-400 mt-1">Controla los ingresos, egresos y realiza el cierre de turno.</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center">
+                        <span className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm ${cajaActiva ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                            <div className={`w-2.5 h-2.5 rounded-full ${cajaActiva ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
+                            {cajaActiva ? `TURNO ABIERTO #${cajaActiva.idTurno}` : 'CAJA CERRADA'}
+                        </span>
+                    </div>
                 </div>
 
                 {!cajaActiva ? (
-                    /* 🟦 1. APERTURA DE CAJA */
+                    /* 1. APERTURA DE CAJA */
                     <div className="bg-white rounded-2xl shadow-sm border max-w-md mx-auto p-6 space-y-4">
                         <div className="flex items-center gap-3 text-teal-600 border-b pb-3 mb-4"><Unlock size={24} /> <h3 className="font-bold text-lg">Apertura de Turno</h3></div>
                         <div>
@@ -232,7 +244,7 @@ const Caja: React.FC = () => {
                 ) : (
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                         
-                        {/* 🟦 2. MOVIMIENTOS DEL DÍA Y TABLA DE VENTAS */}
+                        {/* 2. MOVIMIENTOS DEL DÍA Y TABLA DE VENTAS */}
                         <div className="space-y-6">
                             <div className="bg-white p-6 rounded-2xl shadow-sm border">
                                 <div className="flex justify-between items-center border-b pb-3 mb-4">
@@ -354,7 +366,7 @@ const Caja: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* 🟦 3 y 4. ARQUEO DE CAJA Y CIERRE */}
+                        {/* 3 y 4. ARQUEO DE CAJA Y CIERRE */}
                         <div className="bg-white p-6 rounded-2xl shadow-sm border space-y-6">
                             <div className="flex items-center gap-2 border-b pb-3 text-teal-600"><Calculator size={20} /> <h3 className="font-bold text-lg text-gray-800">Arqueo de Caja</h3></div>
                             

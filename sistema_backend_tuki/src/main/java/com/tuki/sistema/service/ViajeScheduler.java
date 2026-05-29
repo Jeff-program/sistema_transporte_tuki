@@ -2,6 +2,8 @@ package com.tuki.sistema.service;
 
 import com.tuki.sistema.entity.Viaje;
 import com.tuki.sistema.repository.ViajeRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -12,6 +14,7 @@ import java.util.List;
 
 @Component
 public class ViajeScheduler {
+    private static final Logger log = LoggerFactory.getLogger(ViajeScheduler.class);
 
     @Autowired
     private ViajeRepository viajeRepository;
@@ -28,7 +31,7 @@ public class ViajeScheduler {
             if (fechaHoraSalida.isBefore(ahora)) {
                 v.setEstado("FINALIZADO"); 
                 viajeRepository.save(v);
-                System.out.println("Viaje " + v.getIdViaje() + " ha finalizado automáticamente.");
+                log.info("Viaje {} finalizado automaticamente.", v.getIdViaje());
             }
         }
     }

@@ -8,4 +8,6 @@ public interface RutaRepository extends JpaRepository<Ruta, Long> {
     List<Ruta> findByEstado(String estado);
 
     Optional<Ruta> findByNombreRutaIgnoreCaseAndEstadoNot(String nombre, String estado);
+
+    List<Ruta> findByOrigen_IdPuertoAndDestino_IdPuertoAndEstadoNot(Long idOrigen, Long idDestino, String estado);
 }

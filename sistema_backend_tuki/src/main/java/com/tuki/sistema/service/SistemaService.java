@@ -13,4 +13,9 @@ public class SistemaService {
     public void setEnMantenimiento(boolean estado) {
         this.enMantenimiento = estado;
     }
+
+    public boolean alternarMantenimiento() {
+        this.enMantenimiento = !this.enMantenimiento;
+        return this.enMantenimiento;
+    }
 }
