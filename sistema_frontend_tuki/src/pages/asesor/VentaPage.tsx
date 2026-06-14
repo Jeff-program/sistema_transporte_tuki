@@ -11,6 +11,7 @@ import api from '../../services/api';
 import { getViajesProgramados,getEscalasPorRuta,getTarifa,getRutas,getEmbarcaciones } from '../../services/configService';
 import { getMapaAsientos } from '../../services/ventaService';
 import { obtenerCajaActiva } from '../../services/cajaService'; // 🔥 NUEVO: Importamos el servicio de caja
+import { estaArqueoGuardado } from '../../services/arqueoCajaService';
 import {
     Loader,MapPin,Anchor,Ticket,Calendar,Ship,AlertCircle,Trash2,Users,
     User,Globe,Phone,CreditCard,ChevronDown,ArrowRight, FormIcon, RefreshCw
@@ -329,7 +330,10 @@ const VentaPage = () => {
             if (!res || res.estado !== 'ABIERTO') {
                 return notificarError("Debe aperturar su caja en el módulo de 'Control de Caja' antes de vender.");
             }
-            
+            if (estaArqueoGuardado(res.idTurno)) {
+                return notificarError("El arqueo de caja ya fue guardado. Cancela el arqueo en Gestión de Caja para poder vender.");
+            }
+
             setIdTurnoActivo(res.idTurno);
 
             const haySinAsiento = pasajerosWatch.some(p => p.numeroAsiento === '');
@@ -344,6 +348,9 @@ const VentaPage = () => {
     };
 
     const procesarPagoGrupal = async (datosPago: DatosPago) => {
+        if (estaArqueoGuardado(idTurnoActivo)) {
+            return notificarError("El arqueo de caja ya fue guardado. Cancela el arqueo antes de registrar ventas.");
+        }
         const toastId = notificarCarga("Procesando venta grupal...");
 
         try {
@@ -447,9 +454,9 @@ const VentaPage = () => {
                     {/* Título y Tarifa global */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-1 pb-5 border-b border-slate-100">
                         <div>
-                            <h1 className="text-xl sm:text-2xl font-black text-[#2A3F54] flex items-center gap-3">
+                            <h1 className="text-2xl font-bold text-[#2A3F54] flex items-center gap-3">
                                 <div className="p-2 bg-blue-50 rounded-lg text-[#1ABB9C]"><Ticket size={20} /></div>
-                                Punto de Venta
+                                Venta de Pasajes
                             </h1>
                         </div>
                         <div className="flex items-center gap-4">

@@ -268,7 +268,7 @@ const DashboardAsesor = () => {
                             <div className="p-2 bg-blue-50 rounded-lg text-[#1ABB9C]">
                                 <Activity size={24}/>
                             </div>
-                            Mi Panel Comercial
+                            Mi Panel de Control
                         </h1>
                         <p className="text-sm text-gray-400 mt-1 ml-1">
                             {new Date().toLocaleDateString('es-PE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}

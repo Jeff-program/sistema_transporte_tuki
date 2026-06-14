@@ -322,7 +322,7 @@ const DashboardAdmin = () => {
                             <div className="p-2 bg-blue-50 rounded-lg text-[#1ABB9C]">
                                 <Activity size={24} strokeWidth={2.5}/>
                             </div>
-                            Resumen Ejecutivo
+                            Panel de Control
                         </h1>
                         <p className="text-sm text-gray-400 mt-1 ml-1">Resultados operativos en tiempo real ({new Date().toLocaleDateString('es-PE')})</p>
                     </div>

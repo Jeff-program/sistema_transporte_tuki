@@ -563,7 +563,7 @@ const RutasPage = () => {
             <div className="flex items-center gap-4">
                 <div className="p-3 bg-blue-50 rounded-xl text-[#1ABB9C]"><MapIcon size={28} /></div>
                 <div>
-                    <h1 className="text-2xl font-bold text-[#2A3F54]">Rutas Comerciales</h1>
+                    <h1 className="text-2xl font-bold text-[#2A3F54]">Gestión de Rutas y Tarifas</h1>
                     <p className="text-sm text-gray-400 mt-1">Configura trayectos, escalas y tarifas de pasajes.</p>
                 </div>
             </div>

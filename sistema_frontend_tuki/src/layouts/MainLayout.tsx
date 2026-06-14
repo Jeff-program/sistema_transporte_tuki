@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { getCurrentUser, logout } from '../services/authService';
 import { obtenerCajaActiva } from '../services/cajaService';
-import { notificarError } from '../services/feedbackService';
+import { confirmarAccion, notificarError, notificarExito } from '../services/feedbackService';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -55,8 +55,15 @@ const MainLayout = ({ children }: MainLayoutProps) => {
             console.error("Error verificando caja", error);
         }
     }
-    if (window.confirm('¿Desea cerrar sesión del sistema de forma segura?')) {
+    const confirmado = await confirmarAccion(
+        'Cerrar sesión',
+        '¿Desea cerrar sesión del sistema de forma segura?',
+        'Sí, cerrar sesión',
+        'info'
+    );
+    if (confirmado) {
         logout();
+        notificarExito('Sesión cerrada correctamente.');
         navigate('/login');
     }
   };

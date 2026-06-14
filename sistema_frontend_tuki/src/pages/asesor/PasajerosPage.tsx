@@ -601,7 +601,7 @@ const PasajerosPage = () => {
                     <div className="p-2 bg-blue-50 rounded-lg text-[#1ABB9C]">
                         <Users size={24} />
                     </div>
-                    Lista de Pasajeros
+                    Manifiesto de Pasajeros
                 </h1>
                 <p className="text-sm text-gray-400 mt-1 ml-1">Consulta y gestión de ventas por viaje.</p>
             </div>

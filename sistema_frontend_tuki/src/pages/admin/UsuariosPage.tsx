@@ -239,7 +239,7 @@ const UsuariosPage = () => {
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-blue-50 rounded-xl text-[#1ABB9C]"><Users size={28} /></div>
                         <div>
-                            <h1 className="text-2xl font-bold text-[#2A3F54]">Gestión de Personal</h1>
+                            <h1 className="text-2xl font-bold text-[#2A3F54]">Gestión del Personal</h1>
                             <p className="text-sm text-gray-400 mt-1">Administra los accesos de administradores, asesores y agencias.</p>
                         </div>
                     </div>

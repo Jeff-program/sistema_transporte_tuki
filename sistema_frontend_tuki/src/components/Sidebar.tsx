@@ -7,7 +7,7 @@ import {
 import { logout, getCurrentUser } from '../services/authService';
 import logoImg from '../assets/logo.png';
 import { obtenerCajaActiva } from '../services/cajaService';
-import { notificarError } from '../services/feedbackService';
+import { confirmarAccion, notificarError, notificarExito } from '../services/feedbackService';
 
 interface SidebarProps {
   isMobile: boolean;
@@ -23,20 +23,20 @@ const MENU_CONFIG = {
         { label: 'Gestión del Personal', path: '/admin/usuarios', icon: Briefcase },
     ]},
     { section: 'Supervisión Operativa', items: [
-        { label: 'Ríos', path: '/admin/config/rios', icon: RouteIcon },
-        { label: 'Puertos', path: '/admin/config/puertos', icon: Anchor },
-        { label: 'Embarcaciones', path: '/admin/config/embarcaciones', icon: Ship },
-        { label: 'Rutas y Tarifas', path: '/admin/config/rutas', icon: Map },
+        { label: 'Gestión de Ríos', path: '/admin/config/rios', icon: RouteIcon },
+        { label: 'Gestión de Puertos', path: '/admin/config/puertos', icon: Anchor },
+        { label: 'Gestión de Embarcaciones', path: '/admin/config/embarcaciones', icon: Ship },
+        { label: 'Gestión de Rutas y Tarifas', path: '/admin/config/rutas', icon: Map },
     ]},
     { section: 'Gestión Comercial', items: [
         { label: 'Programación de Viajes', path: '/admin/programacion', icon: Calendar },
-        { label: 'Historial de Ventas', path: '/admin/historial', icon: Ticket },
+        { label: 'Auditoría de Ventas', path: '/admin/historial', icon: Ticket },
         { label: 'Reporte de Ventas', path: '/admin/finanzas', icon: DollarSign },
     ]}
   ],
   ASESOR: [
     { section: 'Principal', items: [
-        { label: 'Mi Panel', path: '/asesor/dashboard', icon: Home },
+        { label: 'Mi Panel de Control', path: '/asesor/dashboard', icon: Home },
     ]},
     { section: 'Operaciones', items: [
         { label: 'Venta de Pasajes', path: '/asesor/ventas', icon: Ticket },
@@ -79,8 +79,15 @@ const Sidebar = ({ isMobile, closeMobileMenu }: SidebarProps) => {
         }
     }
 
-    if (window.confirm('¿Desea cerrar sesión del sistema de forma segura?')) {
+    const confirmado = await confirmarAccion(
+        'Cerrar sesión',
+        '¿Desea cerrar sesión del sistema de forma segura?',
+        'Sí, cerrar sesión',
+        'info'
+    );
+    if (confirmado) {
         logout();
+        notificarExito('Sesión cerrada correctamente.');
         navigate('/login');
     }
   };

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import { obtenerCajaActiva, abrirCaja, cerrarCaja, obtenerResumenMovimientos, registrarEgreso } from '../services/cajaService';
 import { getCurrentUser } from '../services/authService';
-import { notificarExito, notificarError, notificarCarga, cerrarNotificacion } from '../services/feedbackService';
+import { notificarExito, notificarError, notificarCarga, cerrarNotificacion, confirmarAccion } from '../services/feedbackService';
+import { cancelarArqueoGuardado, estaArqueoGuardado, marcarArqueoGuardado } from '../services/arqueoCajaService';
 import api from '../services/api'; 
 import { 
     Lock, Unlock, Receipt, Calculator, FileText, Printer, BarChart3, 
@@ -44,6 +45,9 @@ const Caja: React.FC = () => {
             const res = await obtenerCajaActiva(userId);
             if (res && res.estado === 'ABIERTO') {
                 setCajaActiva(res);
+                const arqueoPersistido = estaArqueoGuardado(res.idTurno);
+                setArqueoGuardado(arqueoPersistido);
+                setFaseCierre(arqueoPersistido);
                 const dataResumen = await obtenerResumenMovimientos(userId);
                 setResumen(dataResumen);
                 
@@ -67,6 +71,8 @@ const Caja: React.FC = () => {
                 setCajaActiva(null);
                 setResumen(null);
                 setVentasList([]);
+                setArqueoGuardado(false);
+                setFaseCierre(false);
             }
         } catch (error) {
             console.error("Error cargando el estado", error);
@@ -112,6 +118,9 @@ const Caja: React.FC = () => {
     };
 
     const handleRegistrarEgreso = async () => {
+        if (arqueoGuardado) {
+            return notificarError("El arqueo ya fue guardado. Cancela el arqueo para registrar egresos o ventas.");
+        }
         if (!conceptoEgreso || !montoEgreso || Number(montoEgreso) <= 0) return notificarError("Ingrese un monto válido (mayor a cero).");
         const tId = notificarCarga("Registrando egreso...");
         try {
@@ -152,7 +161,25 @@ const Caja: React.FC = () => {
         }
         setArqueoGuardado(true);
         setFaseCierre(true);
+        setModalEgreso(false);
+        if (cajaActiva?.idTurno) marcarArqueoGuardado(cajaActiva.idTurno);
         notificarExito("Arqueo guardado. Proceda al Cierre de Caja.");
+    };
+
+    const handleCancelarArqueo = async () => {
+        const confirmado = await confirmarAccion(
+            "Cancelar arqueo",
+            "Se desbloquearan egresos y ventas para este turno. Luego deberas verificar y guardar el arqueo nuevamente.",
+            "Si, cancelar arqueo",
+            "warning"
+        );
+        if (!confirmado) return;
+
+        if (cajaActiva?.idTurno) cancelarArqueoGuardado(cajaActiva.idTurno);
+        setArqueoGuardado(false);
+        setFaseCierre(false);
+        notificarExito("Arqueo cancelado. Ya puedes registrar egresos y ventas.");
+        verificarEstadoTurno();
     };
 
     const handleCerrarCajaDefinitivo = async () => {
@@ -161,6 +188,7 @@ const Caja: React.FC = () => {
             await cerrarCaja(userId, Number(conteosFisicos["EFECTIVO"] || 0), obsCierre);
             cerrarNotificacion(tId);
             notificarExito("Caja cerrada y bloqueada con éxito.");
+            if (cajaActiva?.idTurno) cancelarArqueoGuardado(cajaActiva.idTurno);
             setArqueoGuardado(false); setFaseCierre(false);
             verificarEstadoTurno();
         } catch (e: any) {
@@ -211,12 +239,6 @@ const Caja: React.FC = () => {
                             <p className="text-sm text-gray-400 mt-1">Controla los ingresos, egresos y realiza el cierre de turno.</p>
                         </div>
                     </div>
-                    <div className="flex items-center">
-                        <span className={`px-4 py-2 text-sm font-bold rounded-xl flex items-center gap-2 shadow-sm ${cajaActiva ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
-                            <div className={`w-2.5 h-2.5 rounded-full ${cajaActiva ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></div>
-                            {cajaActiva ? `TURNO ABIERTO #${cajaActiva.idTurno}` : 'CAJA CERRADA'}
-                        </span>
-                    </div>
                 </div>
 
                 {!cajaActiva ? (
@@ -229,6 +251,7 @@ const Caja: React.FC = () => {
                                 type="number" 
                                 min="0" 
                                 value={montoInicial} 
+                                placeholder="Ej. 250.00"
                                 onChange={e => {
                                     if(Number(e.target.value) >= 0) setMontoInput(e.target.value);
                                 }} 
@@ -237,7 +260,7 @@ const Caja: React.FC = () => {
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Observaciones</label>
-                            <textarea value={obsApertura} onChange={e => setObsApertura(e.target.value)} className="w-full p-3 border rounded-xl text-sm outline-none focus:border-teal-500" rows={2} />
+                            <textarea value={obsApertura} onChange={e => setObsApertura(e.target.value)} className="w-full p-3 border rounded-xl text-sm outline-none focus:border-teal-500" rows={2} placeholder="Ej. Inicio de turno sin incidencias" />
                         </div>
                         <button onClick={handleAbrirCaja} className="w-full py-3 bg-teal-600 text-white rounded-xl font-bold uppercase hover:bg-teal-700">Abrir Caja</button>
                     </div>
@@ -249,7 +272,16 @@ const Caja: React.FC = () => {
                             <div className="bg-white p-6 rounded-2xl shadow-sm border">
                                 <div className="flex justify-between items-center border-b pb-3 mb-4">
                                     <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2"><BarChart3 className="text-teal-600"/> Resumen de Movimientos</h3>
-                                    <button onClick={() => setModalEgreso(!modalEgreso)} className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+                                    <button
+                                        onClick={() => !arqueoGuardado && setModalEgreso(!modalEgreso)}
+                                        disabled={arqueoGuardado}
+                                        title={arqueoGuardado ? "Cancela el arqueo para registrar egresos" : "Registrar egreso"}
+                                        className={`border px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 ${
+                                            arqueoGuardado
+                                                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                : 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200'
+                                        }`}
+                                    >
                                         <ArrowDownCircle size={14}/> Registrar Egreso
                                     </button>
                                 </div>
@@ -466,6 +498,10 @@ const Caja: React.FC = () => {
                                 <button onClick={handleGuardarArqueo} className="w-full py-3 bg-slate-800 text-white rounded-xl font-bold uppercase hover:bg-slate-900 transition-colors">Verificar y Guardar Arqueo</button>
                             ) : (
                                 <div className="animate-in fade-in space-y-3 pt-4 border-t">
+                                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+                                        Arqueo guardado: las ventas y egresos quedan bloqueados hasta cerrar caja o cancelar el arqueo.
+                                    </div>
+                                    <button onClick={handleCancelarArqueo} className="w-full py-2 bg-white border border-amber-300 text-amber-700 rounded-lg text-sm font-bold hover:bg-amber-50 transition-colors">Cancelar Arqueo</button>
                                     <button onClick={handleImprimirTicket} className="w-full py-2 bg-slate-100 border text-slate-700 rounded-lg text-sm font-bold flex items-center justify-center gap-2"><Printer size={16}/> Imprimir Ticket de Arqueo</button>
                                     <button onClick={handleCerrarCajaDefinitivo} className="w-full py-3 bg-rose-600 text-white rounded-xl font-black uppercase hover:bg-rose-700 transition-colors">Confirmar Cierre de Caja</button>
                                 </div>
@@ -485,7 +521,6 @@ const Caja: React.FC = () => {
                     </div>
                     
                     <div style={{ marginBottom: '10px' }}>
-                        <p style={{ margin: '2px 0' }}><strong>Turno:</strong> #{cajaActiva.idTurno}</p>
                         <p style={{ margin: '2px 0' }}><strong>Fecha:</strong> {new Date().toLocaleDateString()}</p>
                         <p style={{ margin: '2px 0' }}><strong>Cajero:</strong> {user?.nombreCompleto || 'Usuario'}</p>
                     </div>
