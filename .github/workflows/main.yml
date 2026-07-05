@@ -1,0 +1,17 @@
+name: Escaneo de Seguridad OWASP ZAP
+
+on:
+  workflow_dispatch: # Esto nos permite ejecutar el ataque manualmente con un botón
+
+jobs:
+  zap_scan:
+    runs-on: ubuntu-latest
+    name: Ejecutar ZAP DAST
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Escaneo de vulnerabilidades ZAP
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'https://resilient-courage-production-0f33.up.railway.app/'
