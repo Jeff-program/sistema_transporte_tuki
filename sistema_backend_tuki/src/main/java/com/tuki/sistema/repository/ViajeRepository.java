@@ -14,6 +14,7 @@ import java.util.Optional;
 public interface ViajeRepository extends JpaRepository<Viaje, Long> {
     List<Viaje> findByFechaSalidaAndRuta_IdRuta(LocalDate fecha, Long idRuta);
     List<Viaje> findByEstado(String estado);
+    List<Viaje> findByEmbarcacion_IdEmbarcacionAndEstado(Long idEmbarcacion, String estado);
     boolean existsByEmbarcacion_IdEmbarcacionAndFechaSalidaAndEstadoNot(Long idEmbarcacion, LocalDate fechaSalida, String estado);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

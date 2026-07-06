@@ -2,7 +2,9 @@ package com.tuki.sistema.service;
 
 import com.tuki.sistema.dto.MensajeResponse;
 import com.tuki.sistema.entity.Embarcacion;
+import com.tuki.sistema.entity.Viaje;
 import com.tuki.sistema.repository.EmbarcacionRepository;
+import com.tuki.sistema.repository.ViajeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +16,9 @@ public class EmbarcacionService {
 
     @Autowired
     private EmbarcacionRepository repository;
+
+    @Autowired
+    private ViajeRepository viajeRepository;
 
     public List<Embarcacion> listarTodas() {
         return repository.findAll().stream()
@@ -75,6 +80,11 @@ public class EmbarcacionService {
         e.setNombre(e.getNombre() + " (BAJA)");
         
         repository.save(e);
+
+        for (Viaje viaje : viajeRepository.findByEmbarcacion_IdEmbarcacionAndEstado(id, "PROGRAMADO")) {
+            viaje.setEstado("CANCELADO");
+            viajeRepository.save(viaje);
+        }
     }
 
     public MensajeResponse eliminarConMensaje(Long id) {

@@ -95,7 +95,9 @@ public class VentaService {
         }
 
         CajaTurno cajaTurno = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuarioVendedorReal, "ABIERTO")
-                .orElseThrow(() -> new RuntimeException("OPERACIÃ“N RECHAZADA: No tienes un turno de caja abierto. Debes ABRIR TU CAJA primero para poder realizar ventas."));
+                .orElseThrow(() -> new RuntimeException("OPERACIÓN RECHAZADA: No tienes un turno de caja abierto. Debes ABRIR TU CAJA primero para poder realizar ventas."));
+
+        validarTurnoSinArqueo(cajaTurno);
 
         Usuario vendedorReal = usuarioRepository.findById(idUsuarioVendedorReal)
                 .orElseThrow(() -> new RuntimeException("Vendedor no encontrado"));
@@ -412,7 +414,9 @@ public class VentaService {
             }
 
             CajaTurno turnoActivo = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(usuarioQueAnula.getIdUsuario(), "ABIERTO")
-                    .orElseThrow(() -> new RuntimeException("OPERACIÃ“N RECHAZADA: Para procesar una devoluciÃ³n debes tener tu caja ABIERTA."));
+                    .orElseThrow(() -> new RuntimeException("OPERACIÓN RECHAZADA: Para procesar una devoluciÃ³n debes tener tu caja ABIERTA."));
+
+            validarTurnoSinArqueo(turnoActivo);
 
             d.setEstadoPasaje("ANULADO");
             detalleRepository.save(d);
@@ -486,5 +490,11 @@ public class VentaService {
         }
 
         return listaSegura;
+    }
+
+    private void validarTurnoSinArqueo(CajaTurno turno) {
+        if (Boolean.TRUE.equals(turno.getArqueoGuardado())) {
+            throw new RuntimeException("El arqueo de caja ya fue guardado. Cancela el arqueo antes de registrar ventas o egresos.");
+        }
     }
 }

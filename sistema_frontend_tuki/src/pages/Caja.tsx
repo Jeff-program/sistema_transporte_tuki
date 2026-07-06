@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import MainLayout from '../layouts/MainLayout';
-import { obtenerCajaActiva, abrirCaja, cerrarCaja, obtenerResumenMovimientos, registrarEgreso } from '../services/cajaService';
+import { obtenerCajaActiva, abrirCaja, cerrarCaja, obtenerResumenMovimientos, registrarEgreso, guardarArqueo, cancelarArqueo } from '../services/cajaService';
 import { getCurrentUser } from '../services/authService';
 import { notificarExito, notificarError, notificarCarga, cerrarNotificacion, confirmarAccion } from '../services/feedbackService';
-import { cancelarArqueoGuardado, estaArqueoGuardado, marcarArqueoGuardado } from '../services/arqueoCajaService';
 import api from '../services/api'; 
 import { 
     Lock, Unlock, Receipt, Calculator, FileText, Printer, BarChart3, 
@@ -45,7 +44,7 @@ const Caja: React.FC = () => {
             const res = await obtenerCajaActiva(userId);
             if (res && res.estado === 'ABIERTO') {
                 setCajaActiva(res);
-                const arqueoPersistido = estaArqueoGuardado(res.idTurno);
+                const arqueoPersistido = Boolean(res.arqueoGuardado);
                 setArqueoGuardado(arqueoPersistido);
                 setFaseCierre(arqueoPersistido);
                 const dataResumen = await obtenerResumenMovimientos(userId);
@@ -89,8 +88,18 @@ const Caja: React.FC = () => {
     const totalPages = Math.ceil(ventasList.length / itemsPerPage);
     const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
+    const normalizarMetodoPago = (metodo?: string) => (metodo || 'EFECTIVO').toUpperCase().trim();
+
+    const etiquetaMetodoPago = (metodo?: string) => {
+        const normalizado = normalizarMetodoPago(metodo);
+        if (normalizado === 'YAPE' || normalizado === 'PLIN') return 'YAPE / PLIN';
+        if (normalizado === 'TARJETA') return 'TARJETA';
+        if (normalizado === 'EFECTIVO') return 'EFECTIVO';
+        return normalizado;
+    };
+
     const renderIconoMetodo = (metodo: string) => {
-        switch(metodo) {
+        switch(normalizarMetodoPago(metodo)) {
             case 'EFECTIVO': return <DollarSign size={14} className="text-emerald-500"/>;
             case 'YAPE': 
             case 'PLIN': return <Smartphone size={14} className="text-purple-500"/>; 
@@ -154,16 +163,30 @@ const Caja: React.FC = () => {
     const totalEsperadoGlobal = Number(resumen?.montoEsperadoGlobal || 0);
     const diferenciaGlobal = resumen ? totalContadoGlobal - totalEsperadoGlobal : 0;
 
-    const handleGuardarArqueo = () => {
+    const handleGuardarArqueo = async () => {
         if (diferenciaGlobal !== 0 && !obsCierre.trim()) {
             notificarError("Existe un descuadre en caja. Debe ingresar una Observación obligatoria.");
             return;
         }
-        setArqueoGuardado(true);
-        setFaseCierre(true);
-        setModalEgreso(false);
-        if (cajaActiva?.idTurno) marcarArqueoGuardado(cajaActiva.idTurno);
-        notificarExito("Arqueo guardado. Proceda al Cierre de Caja.");
+        const tId = notificarCarga("Guardando arqueo...");
+        try {
+            await guardarArqueo(
+                userId,
+                Number(conteosFisicos["EFECTIVO"] || 0),
+                Number(conteosFisicos["YAPE_PLIN"] || 0),
+                Number(conteosFisicos["TARJETA"] || 0),
+                obsCierre
+            );
+            cerrarNotificacion(tId);
+            setArqueoGuardado(true);
+            setFaseCierre(true);
+            setModalEgreso(false);
+            notificarExito("Arqueo guardado. Proceda al Cierre de Caja.");
+            verificarEstadoTurno();
+        } catch (e: any) {
+            cerrarNotificacion(tId);
+            notificarError(e.response?.data?.error || "Error al guardar el arqueo.");
+        }
     };
 
     const handleCancelarArqueo = async () => {
@@ -175,20 +198,32 @@ const Caja: React.FC = () => {
         );
         if (!confirmado) return;
 
-        if (cajaActiva?.idTurno) cancelarArqueoGuardado(cajaActiva.idTurno);
-        setArqueoGuardado(false);
-        setFaseCierre(false);
-        notificarExito("Arqueo cancelado. Ya puedes registrar egresos y ventas.");
-        verificarEstadoTurno();
+        const tId = notificarCarga("Cancelando arqueo...");
+        try {
+            await cancelarArqueo(userId);
+            cerrarNotificacion(tId);
+            setArqueoGuardado(false);
+            setFaseCierre(false);
+            notificarExito("Arqueo cancelado. Ya puedes registrar egresos y ventas.");
+            verificarEstadoTurno();
+        } catch (e: any) {
+            cerrarNotificacion(tId);
+            notificarError(e.response?.data?.error || "Error al cancelar el arqueo.");
+        }
     };
 
     const handleCerrarCajaDefinitivo = async () => {
         const tId = notificarCarga("Cerrando turno contable...");
         try {
-            await cerrarCaja(userId, Number(conteosFisicos["EFECTIVO"] || 0), obsCierre);
+            await cerrarCaja(
+                userId,
+                Number(conteosFisicos["EFECTIVO"] || 0),
+                obsCierre,
+                Number(conteosFisicos["YAPE_PLIN"] || 0),
+                Number(conteosFisicos["TARJETA"] || 0)
+            );
             cerrarNotificacion(tId);
             notificarExito("Caja cerrada y bloqueada con éxito.");
-            if (cajaActiva?.idTurno) cancelarArqueoGuardado(cajaActiva.idTurno);
             setArqueoGuardado(false); setFaseCierre(false);
             verificarEstadoTurno();
         } catch (e: any) {
@@ -314,7 +349,7 @@ const Caja: React.FC = () => {
                                             {resumen.egresosDetalle.map((eg: any) => (
                                                 <div key={eg.idEgreso} className="flex justify-between text-xs bg-gray-50 p-2 rounded border">
                                                     <span className="text-gray-600">{eg.concepto}</span>
-                                                    <span className="font-bold text-rose-600">- S/ {Number(eg.monto).toFixed(2)}</span>
+                                                    <span className="font-bold text-rose-600">S/ {Number(eg.monto).toFixed(2)}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -363,7 +398,7 @@ const Caja: React.FC = () => {
                                                                     {renderIconoMetodo(venta.metodoPago)}
                                                                 </div>
                                                                 <span className="font-bold text-[#2A3F54] text-xs">
-                                                                    {venta.metodoPago === 'YAPE' || venta.metodoPago === 'PLIN' ? 'YAPE / PLIN' : venta.metodoPago}
+                                                                    {etiquetaMetodoPago(venta.metodoPago)}
                                                                 </span>
                                                             </div>
                                                         </td>

@@ -37,6 +37,27 @@ public class CajaTurno {
     @Column(precision = 10, scale = 2)
     private BigDecimal diferencia;
 
+    @Column(name = "arqueo_guardado")
+    private Boolean arqueoGuardado = false;
+
+    @Column(name = "monto_declarado_efectivo", precision = 10, scale = 2)
+    private BigDecimal montoDeclaradoEfectivo = BigDecimal.ZERO;
+
+    @Column(name = "monto_declarado_yape_plin", precision = 10, scale = 2)
+    private BigDecimal montoDeclaradoYapePlin = BigDecimal.ZERO;
+
+    @Column(name = "monto_declarado_tarjeta", precision = 10, scale = 2)
+    private BigDecimal montoDeclaradoTarjeta = BigDecimal.ZERO;
+
+    @Column(name = "diferencia_yape_plin", precision = 10, scale = 2)
+    private BigDecimal diferenciaYapePlin = BigDecimal.ZERO;
+
+    @Column(name = "diferencia_tarjeta", precision = 10, scale = 2)
+    private BigDecimal diferenciaTarjeta = BigDecimal.ZERO;
+
+    @Column(name = "diferencia_general", precision = 10, scale = 2)
+    private BigDecimal diferenciaGeneral = BigDecimal.ZERO;
+
     @Column(length = 20)
     private String estado = "ABIERTO"; 
 

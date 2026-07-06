@@ -42,6 +42,16 @@ public class CajaController {
         ));
     }
 
+    @PostMapping("/arqueo/guardar")
+    public ResponseEntity<?> guardarArqueo(@RequestBody(required = false) CerrarCajaRequest request) {
+        return ResponseEntity.ok(cajaService.guardarArqueo(usuarioService.obtenerIdUsuarioAutenticado(), request));
+    }
+
+    @PostMapping("/arqueo/cancelar")
+    public ResponseEntity<?> cancelarArqueo() {
+        return ResponseEntity.ok(cajaService.cancelarArqueo(usuarioService.obtenerIdUsuarioAutenticado()));
+    }
+
     @GetMapping("/resumen-movimientos")
     public ResponseEntity<?> obtenerResumenMovimientos(@RequestParam(required = false) Long idUsuario) {
         return ResponseEntity.ok(cajaService.obtenerResumenMovimientos(usuarioService.obtenerIdUsuarioAutenticado()));

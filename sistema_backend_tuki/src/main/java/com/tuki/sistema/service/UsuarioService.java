@@ -4,6 +4,7 @@ import com.tuki.sistema.dto.MensajeResponse;
 import com.tuki.sistema.dto.PerfilUpdateRequest;
 import com.tuki.sistema.dto.UsuarioRegistroRequest;
 import com.tuki.sistema.dto.UsuarioUpdateRequest;
+import com.tuki.sistema.entity.Agencia;
 import com.tuki.sistema.entity.Usuario;
 import com.tuki.sistema.repository.AgenciaRepository;
 import com.tuki.sistema.repository.UsuarioRepository;
@@ -33,7 +34,9 @@ public class UsuarioService {
     @Autowired private PasswordEncoder passwordEncoder;
 
     public List<Usuario> listar() {
-        return usuarioRepository.findAll();
+        return usuarioRepository.findAll().stream()
+                .filter(usuario -> !"ELIMINADO".equals(usuario.getEstado()))
+                .toList();
     }
 
     public Usuario registrar(UsuarioRegistroRequest request, boolean esSuperAdminActual) {
@@ -42,11 +45,12 @@ public class UsuarioService {
         }
 
         String email = limpiarEmail(request.getEmail());
-        validarPassword(request.getPassword(), "La contraseña debe tener al menos 6 caracteres");
+        String nombreCompleto = limpiarNombreCompleto(request.getNombreCompleto());
+        validarPassword(request.getPassword(), "La contrasena debe tener al menos 6 caracteres");
         liberarEmailInactivoSiExiste(email, null);
 
         Usuario usuario = new Usuario();
-        usuario.setNombreCompleto(request.getNombreCompleto());
+        usuario.setNombreCompleto(nombreCompleto);
         usuario.setEmail(email);
         usuario.setPassword(passwordEncoder.encode(request.getPassword()));
         usuario.setRol(validarRol(request.getRol(), esSuperAdminActual));
@@ -64,7 +68,7 @@ public class UsuarioService {
         validarPermisoSuperAdmin(usuario, esSuperAdminActual, "Solo un SUPER_ADMIN puede modificar otro SUPER_ADMIN");
 
         if (tieneTexto(request.getNombreCompleto())) {
-            usuario.setNombreCompleto(request.getNombreCompleto().trim());
+            usuario.setNombreCompleto(limpiarNombreCompleto(request.getNombreCompleto()));
         }
 
         if (tieneTexto(request.getEmail())) {
@@ -95,7 +99,7 @@ public class UsuarioService {
         validarPropietario(usuario, emailAutenticado);
 
         if (tieneTexto(request.getNombreCompleto())) {
-            usuario.setNombreCompleto(request.getNombreCompleto().trim());
+            usuario.setNombreCompleto(limpiarNombreCompleto(request.getNombreCompleto()));
         }
 
         if (tieneTexto(request.getEmail())) {
@@ -106,12 +110,12 @@ public class UsuarioService {
 
         if (tieneTexto(request.getNuevaPassword())) {
             if (!tieneTexto(request.getPasswordActual())) {
-                throw new RuntimeException("Debe enviar su contraseña actual para realizar el cambio");
+                throw new RuntimeException("Debe enviar su contrasena actual para realizar el cambio");
             }
             if (!passwordEncoder.matches(request.getPasswordActual(), usuario.getPassword())) {
-                throw new RuntimeException("La contraseña actual es incorrecta");
+                throw new RuntimeException("La contrasena actual es incorrecta");
             }
-            validarPassword(request.getNuevaPassword(), "La contraseña nueva debe tener al menos 6 caracteres");
+            validarPassword(request.getNuevaPassword(), "La contrasena nueva debe tener al menos 6 caracteres");
             usuario.setPassword(passwordEncoder.encode(request.getNuevaPassword()));
         }
 
@@ -223,17 +227,17 @@ public class UsuarioService {
 
     private void actualizarPasswordAdministrativa(Usuario usuario, UsuarioUpdateRequest request) {
         if (tieneTexto(request.getNewPassword())) {
-            validarPassword(request.getNewPassword(), "La contraseña nueva debe tener al menos 6 caracteres");
+            validarPassword(request.getNewPassword(), "La contrasena nueva debe tener al menos 6 caracteres");
             if (!tieneTexto(request.getCurrentPassword())
                     || !passwordEncoder.matches(request.getCurrentPassword(), usuario.getPassword())) {
-                throw new RuntimeException("La contraseña actual es incorrecta");
+                throw new RuntimeException("La contrasena actual es incorrecta");
             }
             usuario.setPassword(passwordEncoder.encode(request.getNewPassword()));
             return;
         }
 
         if (tieneTexto(request.getPassword())) {
-            validarPassword(request.getPassword(), "La contraseña debe tener al menos 6 caracteres");
+            validarPassword(request.getPassword(), "La contrasena debe tener al menos 6 caracteres");
             usuario.setPassword(passwordEncoder.encode(request.getPassword()));
         }
     }
@@ -244,8 +248,12 @@ public class UsuarioService {
             return;
         }
 
-        usuario.setAgencia(agenciaRepository.findById(idAgencia)
-                .orElseThrow(() -> new RuntimeException("La agencia seleccionada no existe.")));
+        Agencia agencia = agenciaRepository.findById(idAgencia)
+                .orElseThrow(() -> new RuntimeException("La agencia seleccionada no existe."));
+        if (!"ACTIVO".equals(agencia.getEstado())) {
+            throw new RuntimeException("La agencia seleccionada debe estar activa.");
+        }
+        usuario.setAgencia(agencia);
     }
 
     private void liberarEmailInactivoSiExiste(String email, Long idUsuarioActual) {
@@ -260,7 +268,7 @@ public class UsuarioService {
             return;
         }
 
-        throw new RuntimeException("El email ya está en uso por otro usuario ACTIVO");
+        throw new RuntimeException("El email ya esta en uso por otro usuario activo");
     }
 
     private String validarRol(String rol, boolean esSuperAdminActual) {
@@ -282,6 +290,13 @@ public class UsuarioService {
             throw new RuntimeException("El email es obligatorio.");
         }
         return email.trim();
+    }
+
+    private String limpiarNombreCompleto(String nombreCompleto) {
+        if (!tieneTexto(nombreCompleto)) {
+            throw new RuntimeException("El nombre completo es obligatorio.");
+        }
+        return nombreCompleto.trim().replaceAll("\\s+", " ");
     }
 
     private void validarPassword(String password, String mensaje) {

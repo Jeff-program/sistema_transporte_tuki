@@ -3,6 +3,7 @@ package com.tuki.sistema.service;
 import com.tuki.sistema.dto.AgenciaDTO;
 import com.tuki.sistema.dto.AgenciaUpdateRequest;
 import com.tuki.sistema.entity.Agencia;
+import com.tuki.sistema.entity.Puerto;
 import com.tuki.sistema.repository.AgenciaRepository;
 import com.tuki.sistema.repository.PuertoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +38,7 @@ public class AgenciaService {
         agencia.setNombreAgencia(nombreAgencia);
         agencia.setDireccion(dto.getDireccion());
         agencia.setTelefono(dto.getTelefono());
-        agencia.setPuerto(puertoRepository.findById(obtenerIdPuertoCreacion(dto))
-            .orElseThrow(() -> new RuntimeException("El puerto seleccionado no existe.")));
+        agencia.setPuerto(obtenerPuertoActivo(obtenerIdPuertoCreacion(dto)));
 
         return agenciaRepository.save(agencia);
     }
@@ -59,8 +59,7 @@ public class AgenciaService {
 
         Long idPuerto = obtenerIdPuertoActualizacion(request);
         if (idPuerto != null) {
-            agencia.setPuerto(puertoRepository.findById(idPuerto)
-                .orElseThrow(() -> new RuntimeException("El puerto seleccionado no existe.")));
+            agencia.setPuerto(obtenerPuertoActivo(idPuerto));
         }
 
         return agenciaRepository.save(agencia);
@@ -88,6 +87,15 @@ public class AgenciaService {
             return request.getPuerto().getIdPuerto();
         }
         return null;
+    }
+
+    private Puerto obtenerPuertoActivo(Long idPuerto) {
+        Puerto puerto = puertoRepository.findById(idPuerto)
+            .orElseThrow(() -> new RuntimeException("El puerto seleccionado no existe."));
+        if (!"ACTIVO".equals(puerto.getEstado())) {
+            throw new RuntimeException("El puerto seleccionado debe estar activo.");
+        }
+        return puerto;
     }
 
     private String validarNombreAgenciaUnico(String nombreAgencia, Long idAgenciaActual) {

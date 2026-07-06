@@ -66,7 +66,7 @@ public class ReporteService {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Viaje viaje = viajeRepository.findById(idViaje).orElseThrow();
             
-            List<VentaDetalle> detalles = ventaDetalleRepository.findByVenta_Viaje_IdViajeAndEstadoPasaje(idViaje, "ANULADO");
+            List<VentaDetalle> detalles = ventaDetalleRepository.findByVenta_Viaje_IdViajeAndEstadoPasaje(idViaje, "VENDIDO");
             
             Sheet sheet = workbook.createSheet("Manifiesto Pasajeros");
             Row headerRow = sheet.createRow(0);
@@ -119,7 +119,7 @@ public class ReporteService {
                 table.addCell(cell);
             }
             
-            List<VentaDetalle> detalles = ventaDetalleRepository.findByVenta_Viaje_IdViajeAndEstadoPasaje(idViaje, "ANULADO");
+            List<VentaDetalle> detalles = ventaDetalleRepository.findByVenta_Viaje_IdViajeAndEstadoPasaje(idViaje, "VENDIDO");
             
             for (VentaDetalle detalle : detalles) {
                 table.addCell(new Phrase(detalle.getAsiento().getNumero(), FontFactory.getFont(FontFactory.HELVETICA, 9)));

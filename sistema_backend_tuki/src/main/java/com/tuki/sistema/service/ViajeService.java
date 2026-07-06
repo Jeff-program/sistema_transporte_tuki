@@ -1,11 +1,14 @@
 package com.tuki.sistema.service;
 
 import com.tuki.sistema.dto.ViajeDTO;
+import com.tuki.sistema.entity.Embarcacion;
+import com.tuki.sistema.entity.Ruta;
 import com.tuki.sistema.entity.RutaEscala;
 import com.tuki.sistema.entity.Viaje;
 import com.tuki.sistema.entity.ViajeEscala;
 import com.tuki.sistema.repository.EmbarcacionRepository;
 import com.tuki.sistema.repository.RutaEscalaRepository;
+import com.tuki.sistema.repository.RutaRepository;
 import com.tuki.sistema.repository.ViajeEscalaRepository;
 import com.tuki.sistema.repository.ViajeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +22,8 @@ public class ViajeService {
 
     @Autowired private ViajeRepository viajeRepository;
     @Autowired private EmbarcacionRepository embarcacionRepository;
-    @Autowired private RutaEscalaRepository rutaEscalaRepository; 
+    @Autowired private RutaRepository rutaRepository;
+    @Autowired private RutaEscalaRepository rutaEscalaRepository;
     @Autowired private ViajeEscalaRepository viajeEscalaRepository;
 
     public List<ViajeDTO> listarTodos() {
@@ -31,23 +35,43 @@ public class ViajeService {
 
     public List<ViajeDTO> listarProgramados() {
         return viajeRepository.findByEstado("PROGRAMADO").stream()
+                .filter(v -> v.getRuta() != null && "ACTIVO".equals(v.getRuta().getEstado()))
+                .filter(v -> v.getEmbarcacion() != null && "OPERATIVO".equals(v.getEmbarcacion().getEstado()))
                 .map(this::convertirADTO)
                 .collect(Collectors.toList());
     }
 
     public Viaje guardar(Viaje viaje) {
-        boolean esNuevo = (viaje.getIdViaje() == null);
+        validarDatosBasicos(viaje);
+
+        Ruta ruta = rutaRepository.findById(viaje.getRuta().getIdRuta())
+                .orElseThrow(() -> new RuntimeException("Ruta no encontrada"));
+        if (!"ACTIVO".equals(ruta.getEstado())) {
+            throw new RuntimeException("No se puede programar un viaje en una ruta inactiva o eliminada.");
+        }
+
+        Embarcacion embarcacion = embarcacionRepository.findById(viaje.getEmbarcacion().getIdEmbarcacion())
+                .orElseThrow(() -> new RuntimeException("Embarcacion no encontrada"));
+        if (!"OPERATIVO".equals(embarcacion.getEstado())) {
+            throw new RuntimeException("Solo se pueden programar viajes con embarcaciones operativas.");
+        }
+
+        viaje.setRuta(ruta);
+        viaje.setEmbarcacion(embarcacion);
+
+        boolean esNuevo = viaje.getIdViaje() == null;
         if (esNuevo) {
             boolean naveOcupada = viajeRepository.existsByEmbarcacion_IdEmbarcacionAndFechaSalidaAndEstadoNot(
-                    viaje.getEmbarcacion().getIdEmbarcacion(), viaje.getFechaSalida(), "CANCELADO"
+                    embarcacion.getIdEmbarcacion(), viaje.getFechaSalida(), "CANCELADO"
             );
-            if (naveOcupada) throw new RuntimeException("La embarcación ya tiene un viaje programado para esa fecha.");
+            if (naveOcupada) {
+                throw new RuntimeException("La embarcacion ya tiene un viaje programado para esa fecha.");
+            }
 
-            Integer capacidad = embarcacionRepository.findById(viaje.getEmbarcacion().getIdEmbarcacion())
-                    .orElseThrow().getCapacidad();
-            viaje.setCuposDisponibles(capacidad); 
+            viaje.setCuposDisponibles(embarcacion.getCapacidad());
             viaje.setEstado("PROGRAMADO");
         }
+
         Viaje viajeGuardado = viajeRepository.save(viaje);
 
         if (esNuevo) {
@@ -58,16 +82,35 @@ public class ViajeService {
                 ve.setPuerto(re.getPuerto());
                 ve.setOrden(re.getOrden());
                 ve.setEstado("PENDIENTE");
-                viajeEscalaRepository.save(ve); 
+                viajeEscalaRepository.save(ve);
             }
         }
+
         return viajeGuardado;
     }
 
     public void cancelarViaje(Long id) {
-        Viaje v = viajeRepository.findById(id).orElseThrow();
-        v.setEstado("CANCELADO");
-        viajeRepository.save(v);
+        Viaje viaje = viajeRepository.findById(id).orElseThrow(() -> new RuntimeException("Viaje no encontrado"));
+        viaje.setEstado("CANCELADO");
+        viajeRepository.save(viaje);
+    }
+
+    private void validarDatosBasicos(Viaje viaje) {
+        if (viaje == null) {
+            throw new RuntimeException("Los datos del viaje son obligatorios.");
+        }
+        if (viaje.getRuta() == null || viaje.getRuta().getIdRuta() == null) {
+            throw new RuntimeException("La ruta del viaje es obligatoria.");
+        }
+        if (viaje.getEmbarcacion() == null || viaje.getEmbarcacion().getIdEmbarcacion() == null) {
+            throw new RuntimeException("La embarcacion del viaje es obligatoria.");
+        }
+        if (viaje.getFechaSalida() == null) {
+            throw new RuntimeException("La fecha de salida es obligatoria.");
+        }
+        if (viaje.getHoraZarpe() == null) {
+            throw new RuntimeException("La hora de zarpe es obligatoria.");
+        }
     }
 
     private ViajeDTO convertirADTO(Viaje v) {
@@ -84,9 +127,7 @@ public class ViajeService {
             dto.setCapacidadTotal(v.getEmbarcacion().getCapacidad());
         }
         dto.setFechaSalida(v.getFechaSalida());
-        
-        dto.setHoraZarpe(v.getHoraZarpe()); 
-        
+        dto.setHoraZarpe(v.getHoraZarpe());
         dto.setCuposDisponibles(v.getCuposDisponibles());
         dto.setEstado(v.getEstado());
         return dto;

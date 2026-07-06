@@ -11,7 +11,6 @@ import api from '../../services/api';
 import { getViajesProgramados,getEscalasPorRuta,getTarifa,getRutas,getEmbarcaciones } from '../../services/configService';
 import { getMapaAsientos } from '../../services/ventaService';
 import { obtenerCajaActiva } from '../../services/cajaService'; // 🔥 NUEVO: Importamos el servicio de caja
-import { estaArqueoGuardado } from '../../services/arqueoCajaService';
 import {
     Loader,MapPin,Anchor,Ticket,Calendar,Ship,AlertCircle,Trash2,Users,
     User,Globe,Phone,CreditCard,ChevronDown,ArrowRight, FormIcon, RefreshCw
@@ -106,6 +105,7 @@ const VentaPage = () => {
     const [ticketData, setTicketData] = useState<{ venta: any, pago: any } | null>(null);
 
     const [idTurnoActivo, setIdTurnoActivo] = useState<number | null>(null);
+    const [arqueoTurnoActivo, setArqueoTurnoActivo] = useState(false);
 
     const {
         register, control, handleSubmit, setValue, getValues, watch, formState: { errors }
@@ -330,11 +330,12 @@ const VentaPage = () => {
             if (!res || res.estado !== 'ABIERTO') {
                 return notificarError("Debe aperturar su caja en el módulo de 'Control de Caja' antes de vender.");
             }
-            if (estaArqueoGuardado(res.idTurno)) {
+            if (Boolean(res.arqueoGuardado)) {
                 return notificarError("El arqueo de caja ya fue guardado. Cancela el arqueo en Gestión de Caja para poder vender.");
             }
 
             setIdTurnoActivo(res.idTurno);
+            setArqueoTurnoActivo(false);
 
             const haySinAsiento = pasajerosWatch.some(p => p.numeroAsiento === '');
             if (haySinAsiento) {
@@ -348,7 +349,7 @@ const VentaPage = () => {
     };
 
     const procesarPagoGrupal = async (datosPago: DatosPago) => {
-        if (estaArqueoGuardado(idTurnoActivo)) {
+        if (arqueoTurnoActivo) {
             return notificarError("El arqueo de caja ya fue guardado. Cancela el arqueo antes de registrar ventas.");
         }
         const toastId = notificarCarga("Procesando venta grupal...");

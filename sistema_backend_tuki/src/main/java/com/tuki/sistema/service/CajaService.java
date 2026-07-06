@@ -5,20 +5,18 @@ import com.tuki.sistema.dto.CerrarCajaRequest;
 import com.tuki.sistema.dto.EgresoDTO;
 import com.tuki.sistema.dto.EgresoRequest;
 import com.tuki.sistema.entity.CajaTurno;
-import com.tuki.sistema.entity.Pago;
-import com.tuki.sistema.entity.Usuario;
 import com.tuki.sistema.entity.Cancelacion;
 import com.tuki.sistema.entity.Egreso;
+import com.tuki.sistema.entity.Pago;
+import com.tuki.sistema.entity.Usuario;
 import com.tuki.sistema.repository.CajaTurnoRepository;
-import com.tuki.sistema.repository.PagoRepository;
-import com.tuki.sistema.repository.UsuarioRepository;
 import com.tuki.sistema.repository.CancelacionRepository;
 import com.tuki.sistema.repository.EgresoRepository;
-
+import com.tuki.sistema.repository.PagoRepository;
+import com.tuki.sistema.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -55,7 +53,7 @@ public class CajaService {
 
     @Transactional
     public CajaTurno abrirCaja(Long idUsuario, BigDecimal montoInicial, String observacionesApertura) {
-        BigDecimal saldoInicial = montoInicial != null ? montoInicial : BigDecimal.ZERO;
+        BigDecimal saldoInicial = montoSeguro(montoInicial);
         if (saldoInicial.compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("El saldo inicial no puede ser negativo.");
         }
@@ -77,6 +75,7 @@ public class CajaService {
         nuevaCaja.setSaldoInicial(saldoInicial);
         nuevaCaja.setObservacionesApertura(observacionesApertura);
         nuevaCaja.setEstado("ABIERTO");
+        nuevaCaja.setArqueoGuardado(false);
         nuevaCaja.setFechaApertura(LocalDateTime.now());
 
         return cajaTurnoRepository.save(nuevaCaja);
@@ -93,10 +92,11 @@ public class CajaService {
 
         CajaTurno turno = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuario, "ABIERTO")
                 .orElseThrow(() -> new RuntimeException("No tienes caja abierta para registrar egresos."));
+        validarTurnoSinArqueo(turno);
 
         Egreso egreso = new Egreso();
         egreso.setCajaTurno(turno);
-        egreso.setConcepto(concepto);
+        egreso.setConcepto(concepto.trim());
         egreso.setMonto(monto);
         egreso.setFechaEgreso(LocalDateTime.now());
 
@@ -122,8 +122,108 @@ public class CajaService {
     @Transactional(readOnly = true)
     public Map<String, Object> obtenerResumenMovimientos(Long idUsuario) {
         CajaTurno turno = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuario, "ABIERTO")
-                .orElseThrow(() -> new RuntimeException("No tienes ningÃºn turno de caja abierto en este momento."));
+                .orElseThrow(() -> new RuntimeException("No tienes ningun turno de caja abierto en este momento."));
 
+        ResumenCaja resumenCaja = calcularResumen(turno);
+
+        Map<String, Object> resumen = new HashMap<>();
+        resumen.put("idTurno", turno.getIdTurno());
+        resumen.put("saldoInicial", turno.getSaldoInicial());
+        resumen.put("fechaApertura", turno.getFechaApertura().toString());
+        resumen.put("totalVentas", resumenCaja.totalVentas);
+        resumen.put("totalAnulaciones", resumenCaja.totalAnulacionesEfectivo);
+        resumen.put("totalEgresos", resumenCaja.totalEgresos);
+        resumen.put("esperadoPorMetodo", resumenCaja.esperadoPorMetodo);
+        resumen.put("montoEsperadoGlobal", resumenCaja.montoEsperadoGlobal);
+        resumen.put("egresosDetalle", resumenCaja.egresos);
+        resumen.put("arqueoGuardado", Boolean.TRUE.equals(turno.getArqueoGuardado()));
+
+        return resumen;
+    }
+
+    @Transactional
+    public Map<String, Object> cerrarCaja(Long idUsuario, BigDecimal montoDeclaradoEfectivo, String observacionesCierre) {
+        return cerrarCaja(idUsuario, montoDeclaradoEfectivo, BigDecimal.ZERO, BigDecimal.ZERO, observacionesCierre);
+    }
+
+    @Transactional
+    public Map<String, Object> cerrarCaja(Long idUsuario, BigDecimal montoDeclaradoEfectivo, String observacionesCierre, CerrarCajaRequest request) {
+        BigDecimal montoEfectivo = montoDeclaradoEfectivo != null
+                ? montoDeclaradoEfectivo
+                : request != null ? request.getMontoDeclaradoEfectivo() : BigDecimal.ZERO;
+        BigDecimal montoYapePlin = request != null ? request.getMontoDeclaradoYapePlin() : BigDecimal.ZERO;
+        BigDecimal montoTarjeta = request != null ? request.getMontoDeclaradoTarjeta() : BigDecimal.ZERO;
+        String observaciones = observacionesCierre != null
+                ? observacionesCierre
+                : request != null ? request.getObservacionesCierre() : null;
+        return cerrarCaja(idUsuario, montoEfectivo, montoYapePlin, montoTarjeta, observaciones);
+    }
+
+    @Transactional
+    public Map<String, Object> cerrarCaja(
+            Long idUsuario,
+            BigDecimal montoDeclaradoEfectivo,
+            BigDecimal montoDeclaradoYapePlin,
+            BigDecimal montoDeclaradoTarjeta,
+            String observacionesCierre) {
+        CajaTurno turno = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuario, "ABIERTO")
+                .orElseThrow(() -> new RuntimeException("No hay ninguna caja abierta para este usuario."));
+
+        ResumenCaja resumen = calcularResumen(turno);
+        BigDecimal declaradoEfectivo = montoSeguro(montoDeclaradoEfectivo);
+        BigDecimal declaradoYapePlin = montoSeguro(montoDeclaradoYapePlin);
+        BigDecimal declaradoTarjeta = montoSeguro(montoDeclaradoTarjeta);
+        BigDecimal declaradoGeneral = declaradoEfectivo.add(declaradoYapePlin).add(declaradoTarjeta);
+
+        turno.setFechaCierre(LocalDateTime.now());
+        turno.setObservacionesCierre(observacionesCierre);
+        turno.setSaldoFinal(resumen.esperadoEfectivo);
+        turno.setDiferencia(declaradoEfectivo.subtract(resumen.esperadoEfectivo));
+        turno.setMontoDeclaradoEfectivo(declaradoEfectivo);
+        turno.setMontoDeclaradoYapePlin(declaradoYapePlin);
+        turno.setMontoDeclaradoTarjeta(declaradoTarjeta);
+        turno.setDiferenciaYapePlin(declaradoYapePlin.subtract(resumen.esperadoYapePlin));
+        turno.setDiferenciaTarjeta(declaradoTarjeta.subtract(resumen.esperadoTarjeta));
+        turno.setDiferenciaGeneral(declaradoGeneral.subtract(resumen.montoEsperadoGlobal));
+        turno.setArqueoGuardado(false);
+        turno.setEstado("CERRADO");
+
+        cajaTurnoRepository.save(turno);
+
+        Map<String, Object> respuesta = new HashMap<>();
+        respuesta.put("turno", turno);
+        respuesta.put("desglosePagos", resumen.desgloseMetodos);
+        respuesta.put("esperadoEfectivo", resumen.esperadoEfectivo);
+        respuesta.put("esperadoYapePlin", resumen.esperadoYapePlin);
+        respuesta.put("esperadoTarjeta", resumen.esperadoTarjeta);
+
+        return respuesta;
+    }
+
+    @Transactional
+    public CajaTurno guardarArqueo(Long idUsuario, CerrarCajaRequest request) {
+        CajaTurno turno = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuario, "ABIERTO")
+                .orElseThrow(() -> new RuntimeException("No hay ninguna caja abierta para este usuario."));
+
+        turno.setArqueoGuardado(true);
+        if (request != null) {
+            turno.setMontoDeclaradoEfectivo(montoSeguro(request.getMontoDeclaradoEfectivo()));
+            turno.setMontoDeclaradoYapePlin(montoSeguro(request.getMontoDeclaradoYapePlin()));
+            turno.setMontoDeclaradoTarjeta(montoSeguro(request.getMontoDeclaradoTarjeta()));
+            turno.setObservacionesCierre(request.getObservacionesCierre());
+        }
+        return cajaTurnoRepository.save(turno);
+    }
+
+    @Transactional
+    public CajaTurno cancelarArqueo(Long idUsuario) {
+        CajaTurno turno = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuario, "ABIERTO")
+                .orElseThrow(() -> new RuntimeException("No hay ninguna caja abierta para este usuario."));
+        turno.setArqueoGuardado(false);
+        return cajaTurnoRepository.save(turno);
+    }
+
+    private ResumenCaja calcularResumen(CajaTurno turno) {
         List<Pago> pagos = pagoRepository.findByVenta_CajaTurno_IdTurno(turno.getIdTurno());
 
         BigDecimal totalVentas = BigDecimal.ZERO;
@@ -134,115 +234,75 @@ public class CajaService {
         desgloseMetodos.put("TARJETA", BigDecimal.ZERO);
         desgloseMetodos.put("TRANSFERENCIA", BigDecimal.ZERO);
 
-        for (Pago p : pagos) {
-            String metodo = p.getMetodoPago() != null ? p.getMetodoPago().toUpperCase().trim() : "EFECTIVO";
-            BigDecimal monto = p.getMonto() != null ? p.getMonto() : BigDecimal.ZERO;
+        for (Pago pago : pagos) {
+            String metodo = pago.getMetodoPago() != null ? pago.getMetodoPago().toUpperCase().trim() : "EFECTIVO";
+            BigDecimal monto = montoSeguro(pago.getMonto());
             totalVentas = totalVentas.add(monto);
             desgloseMetodos.put(metodo, desgloseMetodos.getOrDefault(metodo, BigDecimal.ZERO).add(monto));
         }
 
-        List<Cancelacion> cancelaciones = cancelacionRepository.findByCajaTurno_IdTurno(turno.getIdTurno());
         BigDecimal totalAnulacionesEfectivo = BigDecimal.ZERO;
-        for (Cancelacion c : cancelaciones) {
-            if ("DEVOLUCION_EFECTIVO".equals(c.getTipoResolucion())) {
-                totalAnulacionesEfectivo = totalAnulacionesEfectivo.add(c.getMontoDevuelto() != null ? c.getMontoDevuelto() : BigDecimal.ZERO);
+        for (Cancelacion cancelacion : cancelacionRepository.findByCajaTurno_IdTurno(turno.getIdTurno())) {
+            if ("DEVOLUCION_EFECTIVO".equals(cancelacion.getTipoResolucion())) {
+                totalAnulacionesEfectivo = totalAnulacionesEfectivo.add(montoSeguro(cancelacion.getMontoDevuelto()));
             }
         }
 
         List<Egreso> egresos = egresoRepository.findByCajaTurno_IdTurno(turno.getIdTurno());
         BigDecimal totalEgresos = BigDecimal.ZERO;
-        for (Egreso e : egresos) {
-            totalEgresos = totalEgresos.add(e.getMonto() != null ? e.getMonto() : BigDecimal.ZERO);
+        for (Egreso egreso : egresos) {
+            totalEgresos = totalEgresos.add(montoSeguro(egreso.getMonto()));
         }
 
-        Map<String, BigDecimal> esperadoPorMetodo = new HashMap<>(desgloseMetodos);
-        BigDecimal esperadoEfectivo = turno.getSaldoInicial()
+        BigDecimal esperadoEfectivo = montoSeguro(turno.getSaldoInicial())
                 .add(desgloseMetodos.get("EFECTIVO"))
                 .subtract(totalAnulacionesEfectivo)
                 .subtract(totalEgresos);
+        BigDecimal esperadoYapePlin = desgloseMetodos.get("YAPE").add(desgloseMetodos.get("PLIN"));
+        BigDecimal esperadoTarjeta = desgloseMetodos.get("TARJETA");
 
+        Map<String, BigDecimal> esperadoPorMetodo = new HashMap<>(desgloseMetodos);
         esperadoPorMetodo.put("EFECTIVO", esperadoEfectivo);
 
         BigDecimal montoEsperadoGlobal = BigDecimal.ZERO;
-        for(BigDecimal val : esperadoPorMetodo.values()) {
-            montoEsperadoGlobal = montoEsperadoGlobal.add(val);
+        for (BigDecimal valor : esperadoPorMetodo.values()) {
+            montoEsperadoGlobal = montoEsperadoGlobal.add(valor);
         }
 
-        Map<String, Object> resumen = new HashMap<>();
-        resumen.put("idTurno", turno.getIdTurno());
-        resumen.put("saldoInicial", turno.getSaldoInicial());
-        resumen.put("fechaApertura", turno.getFechaApertura().toString());
-        resumen.put("totalVentas", totalVentas);
-        resumen.put("totalAnulaciones", totalAnulacionesEfectivo);
-        resumen.put("totalEgresos", totalEgresos);
-        resumen.put("esperadoPorMetodo", esperadoPorMetodo);
-        resumen.put("montoEsperadoGlobal", montoEsperadoGlobal);
-        resumen.put("egresosDetalle", egresos);
-
+        ResumenCaja resumen = new ResumenCaja();
+        resumen.totalVentas = totalVentas;
+        resumen.totalAnulacionesEfectivo = totalAnulacionesEfectivo;
+        resumen.totalEgresos = totalEgresos;
+        resumen.esperadoEfectivo = esperadoEfectivo;
+        resumen.esperadoYapePlin = esperadoYapePlin;
+        resumen.esperadoTarjeta = esperadoTarjeta;
+        resumen.montoEsperadoGlobal = montoEsperadoGlobal;
+        resumen.desgloseMetodos = desgloseMetodos;
+        resumen.esperadoPorMetodo = esperadoPorMetodo;
+        resumen.egresos = egresos;
         return resumen;
     }
 
-    @Transactional
-    public Map<String, Object> cerrarCaja(Long idUsuario, BigDecimal montoDeclaradoEfectivo, String observacionesCierre) {
-        CajaTurno turno = cajaTurnoRepository.findByUsuario_IdUsuarioAndEstado(idUsuario, "ABIERTO")
-                .orElseThrow(() -> new RuntimeException("No hay ninguna caja abierta para este usuario."));
-
-        turno.setFechaCierre(LocalDateTime.now());
-        turno.setObservacionesCierre(observacionesCierre); 
-
-        List<Pago> pagos = pagoRepository.findByVenta_CajaTurno_IdTurno(turno.getIdTurno());
-
-        BigDecimal totalEfectivoVentas = BigDecimal.ZERO;
-        Map<String, BigDecimal> desglosePagos = new HashMap<>(); 
-
-        for (Pago p : pagos) {
-            String metodo = p.getMetodoPago().toUpperCase();
-            desglosePagos.put(metodo, desglosePagos.getOrDefault(metodo, BigDecimal.ZERO).add(p.getMonto()));
-
-            if ("EFECTIVO".equals(metodo)) {
-                totalEfectivoVentas = totalEfectivoVentas.add(p.getMonto());
-            }
+    private void validarTurnoSinArqueo(CajaTurno turno) {
+        if (Boolean.TRUE.equals(turno.getArqueoGuardado())) {
+            throw new RuntimeException("El arqueo de caja ya fue guardado. Cancela el arqueo antes de registrar ventas o egresos.");
         }
-
-        BigDecimal totalAnulacionesEfectivo = BigDecimal.ZERO;
-        for (Cancelacion c : cancelacionRepository.findByCajaTurno_IdTurno(turno.getIdTurno())) {
-            if ("DEVOLUCION_EFECTIVO".equals(c.getTipoResolucion())) {
-                totalAnulacionesEfectivo = totalAnulacionesEfectivo.add(c.getMontoDevuelto() != null ? c.getMontoDevuelto() : BigDecimal.ZERO);
-            }
-        }
-
-        BigDecimal totalEgresos = BigDecimal.ZERO;
-        for (Egreso e : egresoRepository.findByCajaTurno_IdTurno(turno.getIdTurno())) {
-            totalEgresos = totalEgresos.add(e.getMonto() != null ? e.getMonto() : BigDecimal.ZERO);
-        }
-
-        BigDecimal efectivoEnSistema = turno.getSaldoInicial()
-                .add(totalEfectivoVentas)
-                .subtract(totalAnulacionesEfectivo)
-                .subtract(totalEgresos);
-        turno.setSaldoFinal(efectivoEnSistema);
-        turno.setDiferencia(montoDeclaradoEfectivo.subtract(efectivoEnSistema));
-        turno.setEstado("CERRADO");
-
-        cajaTurnoRepository.save(turno);
-
-        Map<String, Object> respuesta = new HashMap<>();
-        respuesta.put("turno", turno);
-        respuesta.put("desglosePagos", desglosePagos);
-
-        return respuesta;
     }
 
-    @Transactional
-    public Map<String, Object> cerrarCaja(Long idUsuario, BigDecimal montoDeclaradoEfectivo, String observacionesCierre, CerrarCajaRequest request) {
-        BigDecimal montoEfectivo = montoDeclaradoEfectivo != null
-                ? montoDeclaradoEfectivo
-                : request != null && request.getMontoDeclaradoEfectivo() != null
-                    ? request.getMontoDeclaradoEfectivo()
-                    : BigDecimal.ZERO;
-        String observaciones = observacionesCierre != null
-                ? observacionesCierre
-                : request != null ? request.getObservacionesCierre() : null;
-        return cerrarCaja(idUsuario, montoEfectivo, observaciones);
+    private BigDecimal montoSeguro(BigDecimal monto) {
+        return monto != null ? monto : BigDecimal.ZERO;
+    }
+
+    private static class ResumenCaja {
+        private BigDecimal totalVentas;
+        private BigDecimal totalAnulacionesEfectivo;
+        private BigDecimal totalEgresos;
+        private BigDecimal esperadoEfectivo;
+        private BigDecimal esperadoYapePlin;
+        private BigDecimal esperadoTarjeta;
+        private BigDecimal montoEsperadoGlobal;
+        private Map<String, BigDecimal> desgloseMetodos;
+        private Map<String, BigDecimal> esperadoPorMetodo;
+        private List<Egreso> egresos;
     }
 }
