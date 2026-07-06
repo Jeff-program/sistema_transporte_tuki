@@ -49,8 +49,17 @@ const Caja: React.FC = () => {
                 setFaseCierre(arqueoPersistido);
                 const dataResumen = await obtenerResumenMovimientos(userId);
                 setResumen(dataResumen);
-                
-                setConteosFisicos({ EFECTIVO: '', YAPE_PLIN: '', TARJETA: '' });
+
+                if (arqueoPersistido) {
+                    setConteosFisicos({
+                        EFECTIVO: res.montoDeclaradoEfectivo != null ? String(res.montoDeclaradoEfectivo) : '',
+                        YAPE_PLIN: res.montoDeclaradoYapePlin != null ? String(res.montoDeclaradoYapePlin) : '',
+                        TARJETA: res.montoDeclaradoTarjeta != null ? String(res.montoDeclaradoTarjeta) : ''
+                    });
+                    setObsCierre(res.observacionesCierre || '');
+                } else {
+                    setConteosFisicos({ EFECTIVO: '', YAPE_PLIN: '', TARJETA: '' });
+                }
 
                 try {
                     const responseVentas = await api.get(`/ventas/mis-ventas-turno?idUsuario=${userId}`);
